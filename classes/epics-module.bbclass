@@ -134,13 +134,14 @@ epics_install_subdirs() {
 }
 
 # Installed text files must not publish the temporary source path or the build
-# TMPDIR (the latter also trips the buildpaths QA check).
+# TMPDIR (the latter also trips the buildpaths QA check). Only comment lines are
+# dropped: those are C preprocessor line markers, never functional settings.
 epics_scrub_build_paths() {
     install_dir="$1"
     grep -Ilr "${S}" ${install_dir} | \
         xargs -r sed -i "s|${S}|${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}|g"
     grep -Ilr "${TMPDIR}" ${install_dir} | \
-        xargs -r sed -i "\#${TMPDIR}#d"
+        xargs -r sed -i "\|^#.*${TMPDIR}|d"
 }
 
 epics_install_symlink() {
