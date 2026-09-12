@@ -220,8 +220,8 @@ Support modules install alongside Base under `/opt/epics/modules/<name>`, each
 with a version-independent symlink:
 
 ```text
-/opt/epics/modules/asyn -> asyn-4.45
-/opt/epics/modules/asyn-4.45/
+/opt/epics/modules/asyn -> asyn-4.46
+/opt/epics/modules/asyn-4.46/
 ```
 
 The target installation contains only `${EPICS_TARGET_ARCH}` binaries and
@@ -252,7 +252,7 @@ AUTOSAVE -----------> BUSY
 XXX -> all selected modules
 ```
 
-`asyn` 4.45 and `autosave` 5.11 are added first. `asyn` needs `libtirpc` for its
+`asyn` 4.46 and `autosave` 6.0 are added first. `asyn` needs `libtirpc` for its
 VXI-11 ONC RPC support and `rpcsvc-proto-native` for the hermetic `rpcgen`:
 
 ```bitbake
