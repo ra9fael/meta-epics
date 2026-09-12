@@ -100,6 +100,27 @@ do_install() {
     # Copy common EPICS files from the compile install tree.
     epics_install_subdirs ${install_dir}
 
+    # The installed CONFIG_SITE must not carry cross-build settings. Base's
+    # configure/CONFIG includes it on every build, and EPICS_HOST_ARCH /
+    # CROSS_COMPILER_TARGET_ARCHS / INSTALL_LOCATION here would force every
+    # on-target build to cross-compile from the build host (and look for tools
+    # under bin/<build-host-arch>). Ship the library defaults an EPICS install
+    # provides instead. STATIC_BUILD=NO makes executables link the shared
+    # libraries, so they resolve e.g. libCom's readline dependency normally.
+    cat > ${install_dir}/configure/CONFIG_SITE <<'EOF'
+# EPICS Base site configuration, installed for the target.
+#
+# Do not set EPICS_HOST_ARCH, CROSS_COMPILER_TARGET_ARCHS or INSTALL_LOCATION
+# here: this file is included by every build, including on-target builds, and
+# those are properties of the build host, not of the installed Base.
+SHARED_LIBRARIES = YES
+STATIC_BUILD = NO
+EOF
+
+    # configure/ is copied wholesale from the build tree; drop its build
+    # output directories so nothing stale ships.
+    rm -rf ${install_dir}/configure/O.*
+
     # The cross toolchain settings generated during the build embed the
     # build-host sysroot path. Dependent module recipes generate their own
     # settings, so ship a deliberate placeholder instead of build paths.
