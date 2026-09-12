@@ -8,7 +8,18 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=2eeea17a15fc6ba8501fdcec09b854dc"
 
 PV = "7.0.10"
 
-SRC_URI = "git://github.com/epics-base/epics-base.git;protocol=https;branch=7.0"
+# EPICS Base bundles PV Access (pvData, pvAccess, normativeTypes, pvaClient,
+# pvDatabase, pva2pva) as git submodules. Set to "0" for a core-only build
+# (no libpvAccess/softIocPVA/pvget/QSRV); the PVA bundle is then neither
+# fetched nor built.
+#
+# The switch selects the fetcher: gitsm checks the submodules out, plain git
+# leaves the submodule directories empty. EPICS' configure/RULES_MODULES only
+# adds checked-out submodules to DIRS, so an empty directory is skipped
+# cleanly rather than failing the build.
+EPICS_PVA_ENABLE ?= "1"
+
+SRC_URI = "${@bb.utils.contains('EPICS_PVA_ENABLE', '1', 'gitsm', 'git', d)}://github.com/epics-base/epics-base.git;protocol=https;branch=7.0"
 SRCREV = "bf11a0c31c919ba85ba2e23b72bcf0b5f9f62e77"
 S = "${WORKDIR}/git"
 
