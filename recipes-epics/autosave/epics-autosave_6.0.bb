@@ -6,7 +6,7 @@ LICENSE = "EPICS"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=a2c259c010f2152379d7769be894bf4a"
 
 SRC_URI = "git://github.com/epics-modules/autosave;protocol=https;branch=master"
-SRCREV = "606903e177790c6431b277d4393700d9e5991b26"
+SRCREV = "03b94f803be4e1844699a9c56562c96406242591"
 S = "${WORKDIR}/git"
 
 inherit epics-module
