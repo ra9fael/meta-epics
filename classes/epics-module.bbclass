@@ -115,6 +115,9 @@ CCC = ${CXX}
 LD = ${TARGET_PREFIX}ld -r
 AR = ${AR} -rc
 RANLIB = ${RANLIB}
+# Cross sysroot. Some modules (e.g. asyn >= 4.46) build include paths from
+# $(SYSROOT) but EPICS Base does not define it.
+SYSROOT = ${RECIPE_SYSROOT}
 EOF
 }
 
