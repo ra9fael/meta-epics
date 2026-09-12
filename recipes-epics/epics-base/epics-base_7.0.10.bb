@@ -52,6 +52,31 @@ STATIC_BUILD = YES
 EOF
 
     epics_generate_config_site
+
+    # EPICS marks these programs as host-only (PROD_HOST), but on-target
+    # development needs them on the target:
+    #   msi          expands .db templates and .substitutions files while
+    #                building IOCs and modules (MSI3_15 in RULES.Db)
+    #   iocLogServer is the log daemon
+    # Reclassify them as IOC programs so the cross target pass builds them.
+    # The guard leaves the host pass untouched: there they are already built
+    # through PROD_HOST.
+    if [ "${EPICS_TARGET_ARCH}" != "${EPICS_HOST_ARCH}" ]; then
+        for target in \
+            "modules/database/src/ioc/dbtemplate/Makefile:msi" \
+            "modules/libcom/src/log/Makefile:iocLogServer"; do
+            makefile=${target%:*}
+            program=${target#*:}
+            cat >> ${S}/${makefile} <<EOF
+
+# Added by BitBake: build this host-only program for the cross target as well,
+# so it is usable when developing on the target itself.
+ifneq (\$(EPICS_HOST_ARCH),\$(T_A))
+PROD_IOC += ${program}
+endif
+EOF
+        done
+    fi
 }
 
 do_install() {
@@ -92,13 +117,26 @@ EOF
         fi
     done
 
-    # EPICS 7.0.10 keeps architecture-independent scripts in src/tools. A
-    # cross build does not guarantee that they are copied to bin/<host-arch>,
-    # so do not make packaging depend on that build-side layout.
+    # EPICS installs its build tooling (Perl/Python/shell scripts) into
+    # bin/<host-arch> only, so a cross build leaves the target without the
+    # scripts needed to create and build IOCs and modules on the target itself
+    # (makeBaseApp.pl, registerRecordDeviceDriver.pl, dbdExpand.pl, ...).
+    # Copy the architecture-independent files from the host bin directory:
+    #   - ELF files are host binaries that cannot run on the target; msi and
+    #     iocLogServer are built for the target separately, see do_configure
+    #   - files already installed by the target pass are left alone, they carry
+    #     target-architecture paths (caRepeater.service)
     install -d ${install_dir}/bin/${EPICS_TARGET_ARCH}
-    for script in ${S}/src/tools/*.pl ${S}/src/tools/*.py; do
-        [ -f "${script}" ] || continue
-        install -m 0755 "${script}" ${install_dir}/bin/${EPICS_TARGET_ARCH}/
+    for tool in ${S}/bin/${EPICS_HOST_ARCH}/*; do
+        if [ ! -f "${tool}" ]; then continue; fi
+        name=$(basename "${tool}")
+        if [ -e "${install_dir}/bin/${EPICS_TARGET_ARCH}/${name}" ]; then continue; fi
+        if head -c 4 "${tool}" | grep -q "ELF"; then continue; fi
+        install -m 0755 "${tool}" ${install_dir}/bin/${EPICS_TARGET_ARCH}/
+        # Some helper scripts embed the host bin directory (S99caRepeater,
+        # S99logServer); point them at the target architecture.
+        sed -i "s|${EPICS_HOST_ARCH}|${EPICS_TARGET_ARCH}|g" \
+            ${install_dir}/bin/${EPICS_TARGET_ARCH}/${name}
     done
 
     # EPICS 7.0.10 has one script with /bin/env while target images normally
