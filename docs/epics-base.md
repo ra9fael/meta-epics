@@ -15,7 +15,9 @@ Default:
 EPICS_PREFIX=/opt/epics
 ```
 
-This stage does not include asyn, seq, autosave, any IOC, or other modules.
+This stage covers EPICS Base. Support modules (`asyn`, `autosave`) install
+under `/opt/epics/modules/` (see below). The remaining modules and any IOC are
+not included yet.
 
 ## PetaLinux Integration
 
@@ -40,13 +42,19 @@ Build stage:
 
 ```text
 ${RECIPE_SYSROOT}/opt/epics/base
+${RECIPE_SYSROOT}/opt/epics/modules/<name>
 ```
 
 Target runtime:
 
 ```text
 /opt/epics/base
+/opt/epics/modules/<name>
 ```
+
+Support modules are configured with `EPICS_INSTALL_BASE`
+(`${EPICS_PREFIX}/modules` by default); EPICS Base overrides it back to
+`${EPICS_PREFIX}` so Base keeps its historical `/opt/epics/base` location.
 
 The host architecture directories are removed from the target package. EPICS
 Perl scripts are copied into `bin/${EPICS_TARGET_ARCH}` because the

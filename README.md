@@ -216,18 +216,30 @@ The recipe uses the checksum of the `LICENSE` file from the pinned
 /etc/profile.d/epics.sh
 ```
 
+Support modules install alongside Base under `/opt/epics/modules/<name>`, each
+with a version-independent symlink:
+
+```text
+/opt/epics/modules/asyn -> asyn-4.45
+/opt/epics/modules/asyn-4.45/
+```
+
 The target installation contains only `${EPICS_TARGET_ARCH}` binaries and
 the architecture-independent EPICS Perl scripts. Host architecture
 directories and host-only Python build helpers are not installed. The scripts
 require the target `perl` package.
 
-`epics-base` stages Base into the BitBake sysroot. Later module recipes can use:
+`epics-base` stages Base into the BitBake sysroot. Support modules are staged
+the same way under `${EPICS_PREFIX}/modules/<name>`, so a module recipe depends
+on its prerequisites and points `configure/RELEASE` at the staged symlink:
 
 ```bitbake
-DEPENDS += "epics-base"
+DEPENDS += "epics-base asyn"
+EPICS_RELEASE_EXTRA = "ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn"
 ```
 
-Use `${RECIPE_SYSROOT}/opt/epics/base` as `EPICS_BASE` during module builds.
+`EPICS_BASE` is always set to `${RECIPE_SYSROOT}${EPICS_PREFIX}/base`
+automatically.
 
 ## Later modules
 
@@ -240,8 +252,9 @@ AUTOSAVE -----------> BUSY
 XXX -> all selected modules
 ```
 
-The future `asyn` recipe will use:
+`asyn` 4.45 and `autosave` 5.11 are added first. `asyn` needs `libtirpc` for its
+VXI-11 ONC RPC support and `rpcsvc-proto-native` for the hermetic `rpcgen`:
 
 ```bitbake
-DEPENDS += "libtirpc"
+DEPENDS += "libtirpc rpcsvc-proto-native"
 ```

@@ -8,6 +8,12 @@
 # metadata plus EPICS_RELEASE_EXTRA for their own EPICS dependencies.
 
 EPICS_PREFIX ?= "/opt/epics"
+
+# Install root for support modules. EPICS Base overrides this to
+# ${EPICS_PREFIX} so Base stays at /opt/epics/base[-<ver>]; every other
+# module installs under /opt/epics/modules/<name>[-<ver>].
+EPICS_INSTALL_BASE ?= "${EPICS_PREFIX}/modules"
+
 EPICS_HOST_ARCH ?= "linux-x86_64"
 
 # Map the BitBake target architecture onto the EPICS target architecture name.
@@ -23,9 +29,9 @@ def epics_target_arch(d):
 
 EPICS_TARGET_ARCH ??= "${@epics_target_arch(d)}"
 
-# Installed directory below ${EPICS_PREFIX}. A version-independent symlink
-# ${EPICS_PREFIX}/${EPICS_MODULE_NAME} is created so downstream modules can
-# reference a staged dependency without tracking its version.
+# Installed directory below ${EPICS_INSTALL_BASE}. A version-independent
+# symlink ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME} is created so downstream
+# modules can reference a staged dependency without tracking its version.
 EPICS_MODULE_NAME ??= "${BPN}"
 EPICS_MODULE_VERSION ??= "${PV}"
 
@@ -41,7 +47,7 @@ EPICS_CONFIG_SITE_FILE ??= "configure/CONFIG_SITE.${EPICS_HOST_ARCH}.${EPICS_TAR
 EPICS_INSTALL_SUBDIRS ??= "bin lib db dbd include cfg templates html doc"
 
 # Extra configure/RELEASE lines for this module's EPICS dependencies, e.g.
-#   EPICS_RELEASE_EXTRA = "ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/asyn"
+#   EPICS_RELEASE_EXTRA = "ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn"
 EPICS_RELEASE_EXTRA ??= ""
 
 # Build-time dependency on EPICS Base; empty when the recipe is Base itself.
@@ -75,13 +81,13 @@ RDEPENDS:${PN} += "${EPICS_RDEPENDS}"
 # ${EPICS_PREFIX} would also export unrelated files if a user sets
 # EPICS_PREFIX to a broad directory such as /usr.
 SYSROOT_DIRS += " \
-    ${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
-    ${EPICS_PREFIX}/${EPICS_MODULE_NAME} \
+    ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
+    ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME} \
 "
 
 FILES:${PN} += " \
-    ${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
-    ${EPICS_PREFIX}/${EPICS_MODULE_NAME} \
+    ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
+    ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME} \
 "
 
 # Everything ships in ${PN} (single-package layout, kept intentionally so the
@@ -90,7 +96,7 @@ FILES:${PN} += " \
 INSANE_SKIP:${PN} += "dev-so"
 
 FILES:${PN}-staticdev += " \
-    ${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}/lib/${EPICS_TARGET_ARCH}/*.a \
+    ${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}/lib/${EPICS_TARGET_ARCH}/*.a \
 "
 
 # Write the target toolchain settings. The full BitBake compiler commands are
@@ -139,15 +145,15 @@ epics_install_subdirs() {
 epics_scrub_build_paths() {
     install_dir="$1"
     grep -Ilr "${S}" ${install_dir} | \
-        xargs -r sed -i "s|${S}|${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}|g"
+        xargs -r sed -i "s|${S}|${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}|g"
     grep -Ilr "${TMPDIR}" ${install_dir} | \
         xargs -r sed -i "\|^#.*${TMPDIR}|d"
 }
 
 epics_install_symlink() {
-    install -d ${D}${EPICS_PREFIX}
+    install -d ${D}${EPICS_INSTALL_BASE}
     ln -sfn ${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
-        ${D}${EPICS_PREFIX}/${EPICS_MODULE_NAME}
+        ${D}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}
 }
 
 do_configure() {
@@ -187,10 +193,19 @@ do_compile() {
 }
 
 do_install() {
-    install_dir=${D}${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
+    install_dir=${D}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
     install -d ${install_dir}
 
     epics_install_subdirs ${install_dir}
+
+    # A cross build installs both a host and a target bin/lib tree. Only the
+    # target architecture belongs in the package: the target strip/objcopy
+    # cannot process host binaries and they must not run on the target.
+    if [ "${EPICS_HOST_ARCH}" != "${EPICS_TARGET_ARCH}" ]; then
+        rm -rf ${install_dir}/bin/${EPICS_HOST_ARCH} \
+               ${install_dir}/lib/${EPICS_HOST_ARCH}
+    fi
+
     epics_scrub_build_paths ${install_dir}
     epics_install_symlink
 }

@@ -29,6 +29,9 @@ inherit epics-module
 # it has no configure/RELEASE and its host pass produces the tools that module
 # builds run.
 EPICS_MODULE_NAME = "base"
+# EPICS Base has always installed at ${EPICS_PREFIX}/base[-<ver>], not under
+# the modules/ subdirectory used by support modules.
+EPICS_INSTALL_BASE = "${EPICS_PREFIX}"
 EPICS_DEPENDS_BASE = ""
 EPICS_WRITE_RELEASE = "0"
 EPICS_HOST_PASS = "1"
@@ -91,7 +94,7 @@ EOF
 }
 
 do_install() {
-    install_dir=${D}${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
+    install_dir=${D}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
     install -d ${install_dir}
 
     # Copy common EPICS files from the compile install tree.
@@ -189,14 +192,22 @@ FILES:${PN} += "${sysconfdir}/profile.d/epics.sh"
 # package and prevents the target strip/objcopy from being applied to
 # host-architecture binaries.
 epics_stage_host_tools() {
-    host_dir=${SYSROOT_DESTDIR}${EPICS_PREFIX}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
-    install -d ${host_dir}/bin/${EPICS_HOST_ARCH}
-    cp -R --no-preserve=ownership ${S}/bin/${EPICS_HOST_ARCH}/. \
-        ${host_dir}/bin/${EPICS_HOST_ARCH}/
-    if [ -d ${S}/lib/${EPICS_HOST_ARCH} ]; then
-        install -d ${host_dir}/lib/${EPICS_HOST_ARCH}
-        cp -R --no-preserve=ownership ${S}/lib/${EPICS_HOST_ARCH}/. \
-            ${host_dir}/lib/${EPICS_HOST_ARCH}/
-    fi
+    # Stage into both the versioned directory and the version-independent
+    # symlink: sysroot_stage_all dereferences ${EPICS_PREFIX}/base into a real
+    # directory before this function runs, so the files added here would
+    # otherwise only reach base-${EPICS_MODULE_VERSION}. Dependent module
+    # recipes resolve Base through the symlink path, so it needs them too.
+    for dir in \
+        ${SYSROOT_DESTDIR}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION} \
+        ${SYSROOT_DESTDIR}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}; do
+        install -d ${dir}/bin/${EPICS_HOST_ARCH}
+        cp -R --no-preserve=ownership ${S}/bin/${EPICS_HOST_ARCH}/. \
+            ${dir}/bin/${EPICS_HOST_ARCH}/
+        if [ -d ${S}/lib/${EPICS_HOST_ARCH} ]; then
+            install -d ${dir}/lib/${EPICS_HOST_ARCH}
+            cp -R --no-preserve=ownership ${S}/lib/${EPICS_HOST_ARCH}/. \
+                ${dir}/lib/${EPICS_HOST_ARCH}/
+        fi
+    done
 }
 SYSROOT_PREPROCESS_FUNCS:append = " epics_stage_host_tools"
