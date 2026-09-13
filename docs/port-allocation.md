@@ -5,6 +5,8 @@ listener port: the procServ console, plus any application socket the IOC opens.
 This document defines how those ports are chosen so several IOC types, and
 several instances of one type, can run on the same board without colliding.
 
+See [ioc.md](ioc.md) for how a recipe and its instances are set up.
+
 The next section explains why the EPICS client ports (CA, PVA) are **not** part
 of this scheme.
 
