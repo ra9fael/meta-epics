@@ -124,7 +124,8 @@ LD = ${TARGET_PREFIX}ld -r
 AR = ${AR} -rc
 RANLIB = ${RANLIB}
 # Cross sysroot. Some modules (e.g. asyn >= 4.46) build include paths from
-# $(SYSROOT) but EPICS Base does not define it.
+# the SYSROOT variable but EPICS Base does not define it. Mentioned without
+# $(...) so the generating shell's heredoc does not try to run it as a command.
 SYSROOT = ${RECIPE_SYSROOT}
 # The staged Base carries the installed ORIGIN-rpath settings, which would
 # make makerrpath embed build-tree paths into cross-built ELF files (they do
