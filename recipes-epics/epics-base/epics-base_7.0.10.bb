@@ -214,9 +214,19 @@ export PATH=$EPICS_BASE_BIN:$PATH
 export LD_LIBRARY_PATH=$EPICS_BASE_LIB:$LD_LIBRARY_PATH
 export PERL5LIB=$EPICS_BASE/lib/perl:$PERL5LIB
 EOF
+
+    # Ship the CA Repeater systemd unit that Base generates, but leave it
+    # disabled: a local repeater is only needed in some setups, so the
+    # operator enables it on demand with
+    #   systemctl daemon-reload && systemctl enable --now caRepeater
+    # Deliberately no multi-user.target.wants link.
+    install -d ${D}${sysconfdir}/systemd/system
+    install -m 0644 ${install_dir}/bin/${EPICS_TARGET_ARCH}/caRepeater.service \
+        ${D}${sysconfdir}/systemd/system/caRepeater.service
 }
 
-FILES:${PN} += "${sysconfdir}/profile.d/epics.sh"
+FILES:${PN} += "${sysconfdir}/profile.d/epics.sh \
+                ${sysconfdir}/systemd/system/caRepeater.service"
 
 # Dependent module recipes run the host-architecture Base tools
 # (EPICS_BASE_HOST_BIN, exposed as TOOLS) while generating headers and version
