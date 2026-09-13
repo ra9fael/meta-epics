@@ -2,6 +2,8 @@
 
 [English](epics-base.md) | 简体中文
 
+本文属于[文档索引](README.zh-CN.md)。
+
 ## 范围
 
 构建带 PV Access 子模块的 EPICS Base 7.0.10，安装到可配置的 target 前缀下：

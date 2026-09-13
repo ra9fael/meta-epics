@@ -2,6 +2,8 @@
 
 English | [简体中文](ioc.zh-CN.md)
 
+Part of the [meta-epics documentation](README.md).
+
 An IOC application is a `makeBaseApp` tree: an application directory with a
 `configure/`, an `*App/src` that produces the IOC executable and its `.dbd`,
 an `*App/Db` with the records, and an `iocBoot/<ioc>` with `st.cmd`.

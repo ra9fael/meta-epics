@@ -2,6 +2,8 @@
 
 [English](port-allocation.md) | 简体中文
 
+本文属于[文档索引](README.zh-CN.md)。
+
 target 上每个跑在 procServ 下的 IOC 实例都需要一个唯一的监听端口：procServ
 控制台一个，IOC 自己打开的应用 socket 也要有。本文定义这些端口如何分配，让
 多个 IOC 类型、以及同一类型的多个实例能在同一块板卡上共存而互不冲突。

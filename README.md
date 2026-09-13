@@ -9,6 +9,9 @@ It provides EPICS Base, the support modules needed by the BLM IOC, a process
 server for supervising IOCs, and the classes a recipe needs to build and package
 an IOC application with a per-instance port allocation.
 
+This document is the getting-started guide. The topic documentation lives in
+[`docs/`](docs/README.md).
+
 ## Recipes
 
 | Recipe           | Version      | Installs to                                  |
@@ -20,7 +23,7 @@ an IOC application with a per-instance port allocation.
 | `procserv`       | master (`+git`) | `/usr/bin/procServ`                       |
 
 `epics-demo-ioc` is an example and the template for the BLM IOC; it is what the
-IOC documentation below refers to. `procserv` follows upstream master, so it is
+IOC documentation refers to. `procserv` follows upstream master, so it is
 rebuilt on each run and needs network access.
 
 ## Classes
@@ -31,8 +34,16 @@ rebuilt on each run and needs network access.
 | `epics-ioc`              | Build and package an IOC application (a `makeBaseApp` tree).      |
 | `epics-ioc-systemd`      | Run an IOC under procServ, single instance or multi-instance.      |
 
-See [docs/ioc.md](docs/ioc.md) for IOC applications and
-[docs/port-allocation.md](docs/port-allocation.md) for the port scheme.
+## Documentation
+
+| Document | Topic |
+|----------|-------|
+| [Getting started](#petalinux-integration) | this document: integrate, configure, build. |
+| [EPICS Base](docs/epics-base.md) | what Base installs, how the cross build is wired. |
+| [Support modules](docs/modules.md) | module recipes, adding one. |
+| [IOC applications](docs/ioc.md) | building, packaging and operating an IOC. |
+| [IOC port allocation](docs/port-allocation.md) | which instance owns which port. |
+| [Troubleshooting](docs/troubleshooting.md) | QA findings, build failures, target diagnosis. |
 
 ## PetaLinux Integration
 
@@ -217,7 +228,6 @@ After booting the target, verify:
 /opt/epics/base -> base-7.0.10
 /opt/epics/base-7.0.10/bin/<target-architecture>/
 /opt/epics/base-7.0.10/lib/<target-architecture>/
-/opt/epics/base-7.0.10/lib/perl/
 /opt/epics/modules/asyn -> asyn-4.46
 /opt/epics/modules/autosave -> autosave-6.0
 /opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
@@ -225,16 +235,11 @@ After booting the target, verify:
 /usr/bin/procServ
 ```
 
-The target filesystem must not contain:
+The target filesystem must not contain host-architecture directories such as
+`bin/linux-x86_64/`. The full layout, including what an on-target development
+setup provides, is described in [EPICS Base](docs/epics-base.md).
 
-```text
-/opt/epics/base-7.0.10/bin/linux-x86_64/
-/opt/epics/base-7.0.10/lib/linux-x86_64/
-```
-
-The target Perl scripts require the `perl` runtime package.
-
-For the IOC application, see [docs/ioc.md](docs/ioc.md). The short version:
+For the IOC application, see [IOC applications](docs/ioc.md). The short version:
 
 ```bash
 systemctl enable --now 'epics-demo-ioc@ioc1'
@@ -243,81 +248,16 @@ caget ioc1:cmd
 
 ## Troubleshooting
 
-After sourcing the PetaLinux Yocto environment as described above, inspect the
-recipe:
+QA findings, build failures and target-side diagnosis are collected in
+[Troubleshooting](docs/troubleshooting.md). The two most common ones:
 
-```bash
-bitbake-layers show-recipes epics-base
-bitbake -e epics-base | grep -E '^(EPICS_PREFIX|EPICS_TARGET_ARCH|EPICS_HOST_ARCH|SRCREV|DEPENDS|RDEPENDS)='
-```
-
-If `epics-base` is not listed, check `build/conf/bblayers.conf` and rerun
-`petalinux-config`. If the layer is rejected as incompatible, compare the
-PetaLinux Yocto release with `LAYERSERIES_COMPAT_epics` in `conf/layer.conf`.
-
-Targets installed from the build sysroot must not keep build paths. A file that
-mentions the build directory trips the `buildpaths` QA check; the classes scrub
-the paths they generate, so a new warning usually means a file was added to a
-package without being scrubbed.
+* A `buildpaths` QA warning means a packaged file kept a build path. The classes
+  scrub what they generate, so a new warning usually means a file was added
+  without being scrubbed.
+* An IOC that cannot find `lib<module>.so` at start is missing either the
+  runtime dependency or its rpath entry.
 
 ## License checksums
 
 Each recipe uses the checksum of the `LICENSE` file from its pinned commit.
 Yocto validates it during the license collection task.
-
-## Target filesystem layout
-
-```text
-/opt/epics/base -> base-7.0.10
-/opt/epics/base-7.0.10/
-/etc/profile.d/epics.sh
-```
-
-Support modules install alongside Base under `/opt/epics/modules/<name>`, and
-IOC applications under `/opt/epics/iocs/<name>`, each with a version-independent
-symlink:
-
-```text
-/opt/epics/modules/asyn -> asyn-4.46
-/opt/epics/modules/asyn-4.46/
-/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
-/opt/epics/iocs/epics-demo-ioc-1.0/
-```
-
-The target installation contains only `${EPICS_TARGET_ARCH}` binaries and
-the architecture-independent EPICS Perl scripts. Host architecture
-directories and host-only Python build helpers are not installed. The scripts
-require the target `perl` package.
-
-`epics-base` stages Base into the BitBake sysroot. Support modules are staged
-the same way under `${EPICS_PREFIX}/modules/<name>`, so a module recipe depends
-on its prerequisites and points `configure/RELEASE` at the staged symlink:
-
-```bitbake
-DEPENDS += "epics-base epics-asyn epics-autosave"
-EPICS_RELEASE_EXTRA = "\
-    ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn\n\
-    AUTOSAVE = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/autosave"
-```
-
-`EPICS_BASE` is always set to `${RECIPE_SYSROOT}${EPICS_PREFIX}/base`
-automatically. Use `\n` to separate several assignments: BitBake keeps it as
-two characters and the class expands it while writing `configure/RELEASE`.
-
-## Further modules
-
-Planned dependency relationships:
-
-```text
-SNCSEQ -> SSCAN -> CALC -> ASYN -> STREAM
-                 \       \-> BUSY
-AUTOSAVE -----------> BUSY
-XXX -> all selected modules
-```
-
-`asyn` and `autosave` are built. `asyn` needs `libtirpc` for its VXI-11 ONC RPC
-support and `rpcsvc-proto-native` for the hermetic `rpcgen`:
-
-```bitbake
-DEPENDS += "libtirpc rpcsvc-proto-native"
-```

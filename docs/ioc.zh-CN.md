@@ -2,6 +2,8 @@
 
 [English](ioc.md) | 简体中文
 
+本文属于[文档索引](README.zh-CN.md)。
+
 IOC 应用是一棵 `makeBaseApp` 目录树：一个应用目录，含 `configure/`、生成 IOC
 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及带 `st.cmd` 的
 `iocBoot/<ioc>`。

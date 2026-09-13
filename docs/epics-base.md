@@ -2,6 +2,8 @@
 
 English | [简体中文](epics-base.zh-CN.md)
 
+Part of the [meta-epics documentation](README.md).
+
 ## Scope
 
 Builds EPICS Base 7.0.10 with the bundled PV Access modules and installs it

@@ -7,6 +7,8 @@
 提供 EPICS Base、BLM IOC 所需的支持模块、用于托管 IOC 的进程服务器，以及
 构建和打包 IOC 应用（含逐实例端口分配）所需的 bbclass。
 
+本文是快速上手指南，主题文档在 [`docs/`](docs/README.zh-CN.md) 目录下。
+
 ## Recipe 列表
 
 | Recipe           | 版本           | 安装位置                                     |
@@ -17,7 +19,7 @@
 | `epics-demo-ioc` | 1.0            | `/opt/epics/iocs/epics-demo-ioc[-1.0]`       |
 | `procserv`       | master（`+git`） | `/usr/bin/procServ`                        |
 
-`epics-demo-ioc` 既是示例，也是 BLM IOC 的模板，下文 IOC 文档都以它为例。
+`epics-demo-ioc` 既是示例，也是 BLM IOC 的模板，IOC 文档都以它为例。
 `procserv` 跟随上游 master，因此每次构建都会重新拉取和编译，需要联网。
 
 ## bbclass
@@ -28,8 +30,16 @@
 | `epics-ioc`              | 构建并打包 IOC 应用（`makeBaseApp` 目录树）。                |
 | `epics-ioc-systemd`      | 用 procServ 托管 IOC，支持单实例与多实例。                   |
 
-IOC 应用见 [docs/ioc.zh-CN.md](docs/ioc.zh-CN.md)，端口分配见
-[docs/port-allocation.zh-CN.md](docs/port-allocation.zh-CN.md)。
+## 文档
+
+| 文档 | 主题 |
+|------|------|
+| [快速上手](#接入-petalinux) | 即本文：接入、配置、构建。 |
+| [EPICS Base](docs/epics-base.zh-CN.md) | Base 安装了什么、交叉构建如何接线。 |
+| [支持模块](docs/modules.zh-CN.md) | 模块 recipe，如何新增一个。 |
+| [IOC 应用](docs/ioc.zh-CN.md) | IOC 的构建、打包与操作。 |
+| [IOC 端口分配](docs/port-allocation.zh-CN.md) | 哪个实例用哪个端口。 |
+| [排障](docs/troubleshooting.zh-CN.md) | QA 告警、构建失败、target 侧诊断。 |
 
 ## 接入 PetaLinux
 
@@ -207,7 +217,6 @@ target 启动后检查：
 /opt/epics/base -> base-7.0.10
 /opt/epics/base-7.0.10/bin/<目标体系结构>/
 /opt/epics/base-7.0.10/lib/<目标体系结构>/
-/opt/epics/base-7.0.10/lib/perl/
 /opt/epics/modules/asyn -> asyn-4.46
 /opt/epics/modules/autosave -> autosave-6.0
 /opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
@@ -215,16 +224,10 @@ target 启动后检查：
 /usr/bin/procServ
 ```
 
-target 上不应出现：
+target 上不应出现 `bin/linux-x86_64/` 这类 host 体系结构目录。完整布局，包括
+target 上的开发环境提供了什么，见 [EPICS Base](docs/epics-base.zh-CN.md)。
 
-```text
-/opt/epics/base-7.0.10/bin/linux-x86_64/
-/opt/epics/base-7.0.10/lib/linux-x86_64/
-```
-
-target 上的 Perl 脚本需要 `perl` 运行时包。
-
-IOC 应用的部分见 [docs/ioc.zh-CN.md](docs/ioc.zh-CN.md)，简要流程：
+IOC 应用的部分见 [IOC 应用](docs/ioc.zh-CN.md)，简要流程：
 
 ```bash
 systemctl enable --now 'epics-demo-ioc@ioc1'
@@ -233,77 +236,14 @@ caget ioc1:cmd
 
 ## 排障
 
-按上文方式加载 PetaLinux 的 Yocto 环境后，检查 recipe：
+QA 告警、构建失败和 target 侧诊断集中在[排障](docs/troubleshooting.zh-CN.md)
+里。最常见的两类：
 
-```bash
-bitbake-layers show-recipes epics-base
-bitbake -e epics-base | grep -E '^(EPICS_PREFIX|EPICS_TARGET_ARCH|EPICS_HOST_ARCH|SRCREV|DEPENDS|RDEPENDS)='
-```
-
-如果 `epics-base` 不在列表里，检查 `build/conf/bblayers.conf` 并重新执行
-`petalinux-config`。如果 layer 因兼容性被拒绝，对比 PetaLinux 的 Yocto 版本与
-`conf/layer.conf` 中的 `LAYERSERIES_COMPAT_epics`。
-
-从构建 sysroot 安装的文件不应残留构建路径；包含构建目录的文件会触发
-`buildpaths` QA 检查。class 会清洗自己生成的路径，因此出现新的 warning 通常
-说明有文件没经过清洗就进了包。
+* `buildpaths` QA 告警说明某个进了包的文件残留了构建路径。class 会清洗自己
+  生成的路径，所以出现新告警通常意味着有文件没经过清洗就进了包。
+* IOC 启动时找不到 `lib<模块>.so`，要么缺运行期依赖，要么缺 rpath 条目。
 
 ## License 校验和
 
 每个 recipe 使用其固定 commit 中 `LICENSE` 文件的校验和，Yocto 在 license
 收集任务里校验。
-
-## target 文件系统布局
-
-```text
-/opt/epics/base -> base-7.0.10
-/opt/epics/base-7.0.10/
-/etc/profile.d/epics.sh
-```
-
-支持模块安装在 Base 旁边的 `/opt/epics/modules/<name>`，IOC 应用安装在
-`/opt/epics/iocs/<name>`，都带一个与版本无关的软链接：
-
-```text
-/opt/epics/modules/asyn -> asyn-4.46
-/opt/epics/modules/asyn-4.46/
-/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
-/opt/epics/iocs/epics-demo-ioc-1.0/
-```
-
-target 安装只包含 `${EPICS_TARGET_ARCH}` 的二进制和与体系结构无关的 EPICS
-Perl 脚本；host 体系结构目录和仅用于构建的 Python 辅助程序不会安装。脚本
-需要 target 的 `perl` 包。
-
-`epics-base` 把 Base stage 进 BitBake sysroot，支持模块同样 stage 到
-`${EPICS_PREFIX}/modules/<name>`，因此模块 recipe 声明对前置模块的依赖，并把
-`configure/RELEASE` 指向 stage 进来的软链接：
-
-```bitbake
-DEPENDS += "epics-base epics-asyn epics-autosave"
-EPICS_RELEASE_EXTRA = "\
-    ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn\n\
-    AUTOSAVE = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/autosave"
-```
-
-`EPICS_BASE` 始终自动设为 `${RECIPE_SYSROOT}${EPICS_PREFIX}/base`。多个赋值用
-`\n` 分隔：BitBake 把它保留为两个字符，class 写 `configure/RELEASE` 时会展开
-成真正的换行。
-
-## 后续模块
-
-计划中的依赖关系：
-
-```text
-SNCSEQ -> SSCAN -> CALC -> ASYN -> STREAM
-                 \       \-> BUSY
-AUTOSAVE -----------> BUSY
-XXX -> 所有已选模块
-```
-
-`asyn` 和 `autosave` 已完成。`asyn` 的 VXI-11 ONC RPC 支持需要 `libtirpc`，
-另外需要 `rpcsvc-proto-native` 提供自带的 `rpcgen`：
-
-```bitbake
-DEPENDS += "libtirpc rpcsvc-proto-native"
-```
