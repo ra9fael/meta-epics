@@ -1,0 +1,8 @@
+# SPDX-FileCopyrightText: 2026 IMPCAS
+#
+# SPDX-License-Identifier: MIT
+
+# Records saved by autosave. $(P) is supplied when the set is created.
+
+$(P)cmdset
+$(P)cmd
