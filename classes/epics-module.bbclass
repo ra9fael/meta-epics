@@ -126,6 +126,13 @@ RANLIB = ${RANLIB}
 # Cross sysroot. Some modules (e.g. asyn >= 4.46) build include paths from
 # $(SYSROOT) but EPICS Base does not define it.
 SYSROOT = ${RECIPE_SYSROOT}
+# The staged Base carries the installed ORIGIN-rpath settings, which would
+# make makerrpath embed build-tree paths into cross-built ELF files (they do
+# not exist on the target). Link-time library resolution happens through the
+# sysroot anyway (CC contains --sysroot); runtime resolution gets an explicit
+# rpath to the final Base location instead.
+LINKER_USE_RPATH = NO
+USR_LDFLAGS += -Wl,-rpath,${EPICS_PREFIX}/base/lib/${EPICS_TARGET_ARCH}
 # BitBake flags. They must be appended (+=), not assigned on the make command
 # line: a command-line assignment makes the += used by module Makefiles for
 # feature macros (e.g. asyn's -DHAVE_DEVINT64) a no-op.
