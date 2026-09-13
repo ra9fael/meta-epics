@@ -117,6 +117,12 @@ do_install() {
 # those are properties of the build host, not of the installed Base.
 SHARED_LIBRARIES = YES
 STATIC_BUILD = NO
+# Embed the shared-library search paths (Base and everything listed in a
+# consumer's configure/RELEASE) into ELF files at link time, so IOCs run
+# without any LD_LIBRARY_PATH. Inside the tree the paths are $ORIGIN-relative
+# (relocatable); outside it makeRPath falls back to absolute paths.
+LINKER_USE_RPATH = ORIGIN
+LINKER_ORIGIN_ROOT = ${EPICS_PREFIX}
 EOF
 
     # configure/ is copied wholesale from the build tree; drop its build
