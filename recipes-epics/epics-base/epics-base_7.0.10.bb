@@ -59,6 +59,11 @@ CROSS_COMPILER_TARGET_ARCHS = ${EPICS_TARGET_ARCH}
 EPICS_HOST_ARCH = ${EPICS_HOST_ARCH}
 INSTALL_LOCATION = ${S}
 FINAL_LOCATION = ${EPICS_PREFIX}/base-${PV}
+# The top Base's own IOCs (softIoc, softIocPVA) record at build time. EPICS
+# compares it against the runtime TOP at iocInit, so without this the build
+# directory would be embedded in those binaries and every start would warn.
+# The backslash keeps the generating shell from running $(...) as a command.
+IOCS_APPL_TOP = \$(FINAL_LOCATION)
 # Build both shared (.so) and static (.a) libraries. Shared libraries are
 # required for on-target development; static archives are kept for
 # applications that link statically.
