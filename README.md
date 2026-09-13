@@ -1,8 +1,36 @@
 # meta-epics
 
-PetaLinux layer for cross-compiling EPICS Base and, in later stages, EPICS support modules and IOC applications.
+PetaLinux layer for cross-compiling EPICS and running IOC applications on the
+target.
 
-This repository currently contains only stage one: `epics-base` 7.0.10. Later modules are not added or built in this stage.
+It provides EPICS Base, the support modules needed by the BLM IOC, a process
+server for supervising IOCs, and the classes a recipe needs to build and package
+an IOC application with a per-instance port allocation.
+
+## Recipes
+
+| Recipe           | Version      | Installs to                                  |
+|------------------|--------------|----------------------------------------------|
+| `epics-base`     | 7.0.10       | `/opt/epics/base[-7.0.10]`                   |
+| `epics-asyn`     | 4.46         | `/opt/epics/modules/asyn[-4.46]`             |
+| `epics-autosave` | 6.0          | `/opt/epics/modules/autosave[-6.0]`          |
+| `epics-demo-ioc` | 1.0          | `/opt/epics/iocs/epics-demo-ioc[-1.0]`       |
+| `procserv`       | master (`+git`) | `/usr/bin/procServ`                       |
+
+`epics-demo-ioc` is an example and the template for the BLM IOC; it is what the
+IOC documentation below refers to. `procserv` follows upstream master, so it is
+rebuilt on each run and needs network access.
+
+## Classes
+
+| Class                    | Purpose                                                          |
+|--------------------------|------------------------------------------------------------------|
+| `epics-module`           | Cross-build a support module with EPICS' own build system.        |
+| `epics-ioc`              | Build and package an IOC application (a `makeBaseApp` tree).      |
+| `epics-ioc-systemd`      | Run an IOC under procServ, single instance or multi-instance.      |
+
+See [docs/ioc.md](docs/ioc.md) for IOC applications and
+[docs/port-allocation.md](docs/port-allocation.md) for the port scheme.
 
 ## PetaLinux Integration
 
@@ -129,13 +157,17 @@ Choose one of the following methods.
 
 ### User Rootfs Configuration
 
-Add this line to `project-spec/meta-user/conf/user-rootfsconfig`:
+Add these lines to `project-spec/meta-user/conf/user-rootfsconfig`:
 
 ```text
 CONFIG_epics-base
+CONFIG_epics-asyn
+CONFIG_epics-autosave
+CONFIG_procserv
+CONFIG_epics-demo-ioc
 ```
 
-Then open the rootfs configuration menu and confirm the package is selected:
+Then open the rootfs configuration menu and confirm the packages are selected:
 
 ```bash
 petalinux-config -c rootfs
@@ -146,17 +178,22 @@ petalinux-config -c rootfs
 Alternatively, add this to `project-spec/meta-user/conf/user.conf`:
 
 ```bitbake
-IMAGE_INSTALL:append = " epics-base"
+IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-demo-ioc"
 ```
 
 Do not use both methods at the same time.
 
+`epics-demo-ioc` depends on `epics-asyn`, `epics-autosave`, `procserv` and
+`socat`, so selecting it pulls the rest in. Keep the explicit entries if you
+want to build and inspect the individual packages.
+
 ## Build
 
-Build the recipe first:
+Build a recipe on its own (faster than a full image while iterating):
 
 ```bash
 petalinux-build -c epics-base
+petalinux-build -c epics-demo-ioc
 ```
 
 Then build the complete image:
@@ -165,10 +202,12 @@ Then build the complete image:
 petalinux-build
 ```
 
-The first build fetches EPICS Base from GitHub. Network access or a configured
-source mirror is required unless the source is already present in `DL_DIR`.
+The first build fetches EPICS Base and the modules from GitHub. Network access
+or a configured source mirror is required unless the sources are already present
+in `DL_DIR`. `procserv` tracks master and is therefore fetched and rebuilt on
+every run.
 
-## Verify Target Files
+## Verify the Target Installation
 
 After booting the target, verify:
 
@@ -177,7 +216,11 @@ After booting the target, verify:
 /opt/epics/base-7.0.10/bin/<target-architecture>/
 /opt/epics/base-7.0.10/lib/<target-architecture>/
 /opt/epics/base-7.0.10/lib/perl/
+/opt/epics/modules/asyn -> asyn-4.46
+/opt/epics/modules/autosave -> autosave-6.0
+/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
 /etc/profile.d/epics.sh
+/usr/bin/procServ
 ```
 
 The target filesystem must not contain:
@@ -188,6 +231,13 @@ The target filesystem must not contain:
 ```
 
 The target Perl scripts require the `perl` runtime package.
+
+For the IOC application, see [docs/ioc.md](docs/ioc.md). The short version:
+
+```bash
+systemctl enable --now 'epics-demo-ioc@ioc1'
+caget ioc1:cmd
+```
 
 ## Troubleshooting
 
@@ -203,10 +253,15 @@ If `epics-base` is not listed, check `build/conf/bblayers.conf` and rerun
 `petalinux-config`. If the layer is rejected as incompatible, compare the
 PetaLinux Yocto release with `LAYERSERIES_COMPAT_epics` in `conf/layer.conf`.
 
-## License checksum
+Targets installed from the build sysroot must not keep build paths. A file that
+mentions the build directory trips the `buildpaths` QA check; the classes scrub
+the paths they generate, so a new warning usually means a file was added to a
+package without being scrubbed.
 
-The recipe uses the checksum of the `LICENSE` file from the pinned
-7.0.10 commit. Yocto validates it during the license collection task.
+## License checksums
+
+Each recipe uses the checksum of the `LICENSE` file from its pinned commit.
+Yocto validates it during the license collection task.
 
 ## Target filesystem layout
 
@@ -216,12 +271,15 @@ The recipe uses the checksum of the `LICENSE` file from the pinned
 /etc/profile.d/epics.sh
 ```
 
-Support modules install alongside Base under `/opt/epics/modules/<name>`, each
-with a version-independent symlink:
+Support modules install alongside Base under `/opt/epics/modules/<name>`, and
+IOC applications under `/opt/epics/iocs/<name>`, each with a version-independent
+symlink:
 
 ```text
 /opt/epics/modules/asyn -> asyn-4.46
 /opt/epics/modules/asyn-4.46/
+/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
+/opt/epics/iocs/epics-demo-ioc-1.0/
 ```
 
 The target installation contains only `${EPICS_TARGET_ARCH}` binaries and
@@ -234,14 +292,17 @@ the same way under `${EPICS_PREFIX}/modules/<name>`, so a module recipe depends
 on its prerequisites and points `configure/RELEASE` at the staged symlink:
 
 ```bitbake
-DEPENDS += "epics-base asyn"
-EPICS_RELEASE_EXTRA = "ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn"
+DEPENDS += "epics-base epics-asyn epics-autosave"
+EPICS_RELEASE_EXTRA = "\
+    ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn\n\
+    AUTOSAVE = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/autosave"
 ```
 
 `EPICS_BASE` is always set to `${RECIPE_SYSROOT}${EPICS_PREFIX}/base`
-automatically.
+automatically. Use `\n` to separate several assignments: BitBake keeps it as
+two characters and the class expands it while writing `configure/RELEASE`.
 
-## Later modules
+## Further modules
 
 Planned dependency relationships:
 
@@ -252,8 +313,8 @@ AUTOSAVE -----------> BUSY
 XXX -> all selected modules
 ```
 
-`asyn` 4.46 and `autosave` 6.0 are added first. `asyn` needs `libtirpc` for its
-VXI-11 ONC RPC support and `rpcsvc-proto-native` for the hermetic `rpcgen`:
+`asyn` and `autosave` are built. `asyn` needs `libtirpc` for its VXI-11 ONC RPC
+support and `rpcsvc-proto-native` for the hermetic `rpcgen`:
 
 ```bitbake
 DEPENDS += "libtirpc rpcsvc-proto-native"
