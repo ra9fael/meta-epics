@@ -1,5 +1,7 @@
 # IOC port allocation
 
+English | [简体中文](port-allocation.zh-CN.md)
+
 Every IOC instance that runs under procServ on the target needs a unique
 listener port: the procServ console, plus any application socket the IOC opens.
 This document defines how those ports are chosen so several IOC types, and
