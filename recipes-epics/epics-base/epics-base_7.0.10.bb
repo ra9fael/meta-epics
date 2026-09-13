@@ -233,6 +233,14 @@ EOF
 FILES:${PN} += "${sysconfdir}/profile.d/epics.sh \
                 ${sysconfdir}/systemd/system/caRepeater.service"
 
+# libCom's envData.c is generated with the absolute paths of the CONFIG_ENV
+# files it came from (modules/libcom/src/env/bldEnvData.pl writes them into a
+# provenance comment, and there is no switch to turn that off). The debug
+# source package ships that file verbatim, so it always trips the buildpaths
+# check even though the comment never reaches a binary. Waive it for this
+# package only.
+INSANE_SKIP:${PN}-src += "buildpaths"
+
 # Dependent module recipes run the host-architecture Base tools
 # (EPICS_BASE_HOST_BIN, exposed as TOOLS) while generating headers and version
 # files, so those tools must be present in their sysroot. They are copied into
