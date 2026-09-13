@@ -1,72 +1,46 @@
-# IOC port allocation
+# IOC port management
 
 English | [简体中文](port-allocation.zh-CN.md)
 
 Part of the [meta-epics documentation](README.md).
 
-Every IOC instance that runs under procServ on the target needs a unique
-listener port: the procServ console, plus any application socket the IOC opens.
-This document defines how those ports are chosen so several IOC types, and
-several instances of one type, can run on the same board without colliding.
+Several IOC instances on one target each need a console port and, depending on
+the application, their own service ports. EPICS itself already manages most of
+this: the first IOC on a host gets the default CA/PVA ports, and every further
+IOC automatically falls back to a dynamic port that its beacons advertise. The
+one port EPICS knows nothing about is the procServ console, so that is the only
+one this layer allocates statically.
+
+| Layer | Port | Managed by |
+|-------|------|------------|
+| procServ console | `21000 + 10 * slot` (21000, 21010, ...) | **static slot allocation** |
+| IOC application listeners (`APP_PORT_1/2`) | `+1`/`+2` of the slot, overridable | optional, for IOCs that open sockets |
+| CA server | none: dynamic (first IOC gets 5064) | EPICS; optionally pinned |
+| PVA server | none: dynamic (first IOC gets 5075) | EPICS; optionally pinned |
+| CA beacon/repeater, PVA broadcast | 5065 / 5076 | shared by all IOCs on the host |
 
 See [ioc.md](ioc.md) for how a recipe and its instances are set up.
 
-The next section explains why the EPICS client ports (CA, PVA) are **not** part
-of this scheme.
+## The slot index
 
-## Range and structure
+`IOC_INSTANCE_INDEX` (0-99) is the single number an operator assigns. It is
+**global to the target**: two different IOC types and two instances of one type
+draw from the same pool, because what must not collide is the console port.
 
-The site range is `21000-21999`, set by `EPICS_IOC_PORT_BASE` (the class default
-is `21000`). It is below the Linux ephemeral range (`32768-60999`), so a
-short-lived outbound connection cannot steal an IOC port.
-
-```
-21000 -+-- block 0  (IOC type 0)   21000-21099
-       +-- block 1  (IOC type 1)   21100-21199
-       +-- ...
-       +-- block 9                 21900-21999
-```
-
-* **One 100-port block per IOC type.** A recipe sets `IOC_PORT_BLOCK_INDEX`
-  (0-9); the class computes
-  `IOC_PORT_BLOCK = EPICS_IOC_PORT_BASE + 100 * IOC_PORT_BLOCK_INDEX`.
-* **A 10-port stride per instance.** An instance's env file sets
-  `IOC_INSTANCE_INDEX` (0-9); the start script computes
-  `INSTANCE_BASE = IOC_PORT_BLOCK + 10 * IOC_INSTANCE_INDEX`.
-
-Offsets within an instance's 10 ports:
-
-| Offset | Variable     | Purpose                                        |
-|--------|--------------|------------------------------------------------|
-| `+0`   | `PS_PORT`    | procServ console (telnet)                      |
-| `+1`   | `APP_PORT_1` | IOC primary listener (e.g. the demo echo port) |
-| `+2`   | `APP_PORT_2` | IOC secondary listener                         |
-| `+3..+9` | -          | reserved (fixed PVA/CA if ever needed)         |
-
-Capacity: 10 IOC types x 10 instances x 10 ports in the range.
-
-## Block registry
-
-| Block index | IOC type              | Range       | Notes                    |
-|-------------|-----------------------|-------------|--------------------------|
-| 0           | `epics-demo-ioc`      | 21000-21099 | demo/template            |
-| 1           | `impcas-ioc-blm-zux`  | 21100-21199 | BLM production IOC       |
-| 2-9         | reserved              | 21200-21999 |                          |
-
-## Instance table
-
-| IOC type         | Instance | `IOC_INSTANCE_INDEX` | `PS_PORT` | `APP_PORT_1` | `APP_PORT_2` |
-|------------------|----------|----------------------|-----------|--------------|--------------|
-| `epics-demo-ioc` | `ioc1`   | 0                    | 21000     | 21001        | 21002        |
-| `epics-demo-ioc` | `ioc2`   | 1                    | 21010     | 21011        | 21012        |
-| `impcas-ioc-blm-zux` | `iocblm` | 0                | 21100     | 21101        | 21102        |
-
-The mapper is `<iocdir>/ioc-ports.sh`, installed with the IOC:
+The instance env file sets it:
 
 ```sh
-ioc-ports.sh --show     # print the ports resolved for this instance
-ioc-ports.sh --next     # print the first free IOC_INSTANCE_INDEX
-ioc-ports.sh --audit    # scan the instance env files and report collisions
+IOC_INSTANCE_INDEX=1        # console 21010, app ports 21011/21012
+IOC_PREFIX=ioc1:
+IOC_STATE=/var/lib/<PN>/ioc1
+```
+
+The mapper is `<iocdir>/ioc-ports.sh`, installed with every IOC:
+
+```sh
+ioc-ports.sh --show [instance]  # derived ports, plus the running endpoints
+ioc-ports.sh --next             # first free slot, across every IOC on the target
+ioc-ports.sh --audit            # report slot collisions in /etc/epics/*/*.env
 ```
 
 A new instance is created from the shipped example:
@@ -77,36 +51,60 @@ cp /etc/epics/<PN>/example.env /etc/epics/<PN>/<name>.env
 systemctl enable --now '<PN>@<name>'
 ```
 
-`ioc-ports.sh --next` exists so the index does not have to be tracked by hand.
-An explicit `PS_PORT`, `APP_PORT_1` or `APP_PORT_2` in the instance env file
-overrides the derived value.
+## procServ console (the statically managed port)
 
-## How clients find PVs (CA and PVA are not in this scheme)
+The console has no discovery mechanism -- procServ registers nowhere -- so each
+instance gets the deterministic port `EPICS_IOC_PORT_BASE + 10 * index`, and a
+collision makes the second IOC fail visibly instead of silently.
 
-A CA or PVA client does not need a PV-to-port map: the port is resolved by the
-protocol at runtime. CA sends its search to UDP 5064, and the server's search
-socket is opened with address fanout (`SO_REUSEPORT`), so **every** IOC on the
-host receives it. The instance that owns the PV replies and the reply carries
-its own TCP port. PVA works the same way through its UDP beacon, which carries
-the server port.
+Two aids come with it:
 
-This is why CA/PVA keep their system defaults (`5064`/`5065` and `5075`/`5076`)
-for all instances: several IOCs coexist on one host and the client just uses the
-PV name (`ioc1:...` vs `ioc2:...`).
+* procServ runs with `-I /run/epics/<PN>/<instance>.info`, so the running
+  server's PID and actual endpoints are on disk; `ioc-ports.sh --show <instance>`
+  prints them.
+* The console is plain telnet and, with the default `PROCSERV_ARGS="-A"`,
+  reachable from any host. Restrict it per instance (`PROCSERV_ARGS="-r"` binds
+  localhost only) or with a firewall over the 21000 range; procServ can also
+  serve the console on a UNIX domain socket (`unix:/path` endpoint) if no TCP
+  port should be used at all.
 
-`EPICS_CA_ADDR_LIST` therefore only names the hosts to search:
+## CA and PVA (dynamic, optionally pinned)
 
-| Situation                             | Value                                            |
-|---------------------------------------|--------------------------------------------------|
-| Client and board in one broadcast domain | empty (use the default broadcast), or the board IP |
-| Client on another subnet              | `EPICS_CA_ADDR_LIST=<board-ip>`, space separated for several boards |
-| Port                                  | do **not** append one; `5064` is implicit        |
+No allocation is needed. The CA server's UDP search socket is opened with
+address fanout (`SO_REUSEPORT`), so a broadcast search reaches **every** IOC on
+the host; the instance that owns the PV replies and the reply carries its own
+TCP port. When an IOC cannot have the default port -- because another one has it
+-- the server automatically retries with a dynamic port and announces it in its
+beacons. PVA behaves the same way: its UDP search port (5076) is shared, its TCP
+port is advertised in search replies and beacons.
 
-Only a CA server moved off `5064` would need `ip:port` entries, and then every
-client would have to change too -- which is why it stays at the default.
+So the first IOC on a target runs on 5064/5075 and every further one on a
+dynamic port, with no configuration anywhere.
 
-The console port (`21000`, `21010`, ...) and the application ports
-(`APP_PORT_1`) belong to the **telnet operator** and to programs that connect to
-the IOC's own sockets. They are not CA ports and must never appear in
-`EPICS_CA_ADDR_LIST`; their mapping is the table above, and the instance env
-file records it.
+Pin a port only when determinism is required -- firewalls, cross-subnet clients,
+or documented deployments:
+
+```sh
+# in the instance env file; recommended values keep the slot layout:
+CA_PORT=21013        # base + 10*index + 3
+PVA_PORT=21014       # base + 10*index + 4
+```
+
+The start script exports `EPICS_CA_SERVER_PORT` / `EPICS_PVAS_SERVER_PORT` from
+these before the IOC starts.
+
+## Client configuration
+
+| Situation | CA (caget/caput/camonitor) | PVA (pvget/QSRV) |
+|---|---|---|
+| Client and board in one broadcast domain | nothing, for every slot | nothing, for every slot |
+| Cross-subnet / firewall | pin the IOC's port (above), then `EPICS_CA_ADDR_LIST="<ip>:<ca-port>"`, space separated for several; `EPICS_CA_AUTO_ADDR_LIST=NO` for a fully explicit list | pin the IOC's port, then `EPICS_PVA_ADDR_LIST="<ip>:5076"` (the broadcast port is shared) |
+
+Notes:
+
+* Do **not** set `EPICS_CA_SERVER_PORT` on a client to reach a specific IOC: it
+  is the client's own single search port, not a per-IOC selector.
+* The console port and the application ports are not CA ports and never appear
+  in `EPICS_CA_ADDR_LIST`.
+* Broadcasts do not cross subnets, which is exactly why the pinned-port option
+  exists.

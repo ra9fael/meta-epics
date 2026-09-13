@@ -7,7 +7,7 @@ target.
 
 It provides EPICS Base, the support modules needed by the BLM IOC, a process
 server for supervising IOCs, and the classes a recipe needs to build and package
-an IOC application with a per-instance port allocation.
+an IOC application with a per-instance console port.
 
 This document is the getting-started guide. The topic documentation lives in
 [`docs/`](docs/README.md).
@@ -19,11 +19,12 @@ This document is the getting-started guide. The topic documentation lives in
 | `epics-base`     | 7.0.10       | `/opt/epics/base[-7.0.10]`                   |
 | `epics-asyn`     | 4.46         | `/opt/epics/modules/asyn[-4.46]`             |
 | `epics-autosave` | 6.0          | `/opt/epics/modules/autosave[-6.0]`          |
-| `epics-demo-ioc` | 1.0          | `/opt/epics/iocs/epics-demo-ioc[-1.0]`       |
+| `epics-asyn-scope-ioc` | 1.0 | `/opt/epics/iocs/asyn-scope-ioc[-1.0]`      |
 | `procserv`       | master (`+git`) | `/usr/bin/procServ`                       |
 
-`epics-demo-ioc` is an example and the template for the BLM IOC; it is what the
-IOC documentation refers to. `procserv` follows upstream master, so it is
+`epics-asyn-scope-ioc` is an example and the template for the BLM IOC: it builds
+asyn's own simulated oscilloscope test IOC. It is what the IOC documentation
+refers to. `procserv` follows upstream master, so it is
 rebuilt on each run and needs network access.
 
 ## Classes
@@ -177,7 +178,7 @@ CONFIG_epics-base
 CONFIG_epics-asyn
 CONFIG_epics-autosave
 CONFIG_procserv
-CONFIG_epics-demo-ioc
+CONFIG_epics-asyn-scope-ioc
 ```
 
 Then open the rootfs configuration menu and confirm the packages are selected:
@@ -191,13 +192,13 @@ petalinux-config -c rootfs
 Alternatively, add this to `project-spec/meta-user/conf/user.conf`:
 
 ```bitbake
-IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-demo-ioc"
+IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-asyn-scope-ioc"
 ```
 
 Do not use both methods at the same time.
 
-`epics-demo-ioc` depends on `epics-asyn`, `epics-autosave`, `procserv` and
-`socat`, so selecting it pulls the rest in. Keep the explicit entries if you
+`epics-asyn-scope-ioc` depends on `epics-asyn` and `procserv`, so selecting it
+pulls those in; `epics-autosave` is only pulled in by recipes that use it. Keep the explicit entries if you
 want to build and inspect the individual packages.
 
 ## Build
@@ -206,7 +207,7 @@ Build a recipe on its own (faster than a full image while iterating):
 
 ```bash
 petalinux-build -c epics-base
-petalinux-build -c epics-demo-ioc
+petalinux-build -c epics-asyn-scope-ioc
 ```
 
 Then build the complete image:
@@ -230,7 +231,7 @@ After booting the target, verify:
 /opt/epics/base-7.0.10/lib/<target-architecture>/
 /opt/epics/modules/asyn -> asyn-4.46
 /opt/epics/modules/autosave -> autosave-6.0
-/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
+/opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /etc/profile.d/epics.sh
 /usr/bin/procServ
 ```
@@ -242,8 +243,8 @@ setup provides, is described in [EPICS Base](docs/epics-base.md).
 For the IOC application, see [IOC applications](docs/ioc.md). The short version:
 
 ```bash
-systemctl enable --now 'epics-demo-ioc@ioc1'
-caget ioc1:cmd
+systemctl enable --now 'epics-asyn-scope-ioc@ioc0'
+caget ioc0:scope1:Waveform1.VAL
 ```
 
 ## Troubleshooting

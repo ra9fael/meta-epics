@@ -12,7 +12,7 @@
 | [EPICS Base](epics-base.zh-CN.md) | 了解 Base 在 target 上装了什么、交叉构建如何接线、target 上的开发环境包含什么。 |
 | [支持模块](modules.zh-CN.md) | 新增或维护 `asyn`、`autosave` 这类模块 recipe。 |
 | [IOC 应用](ioc.zh-CN.md) | 构建、打包、启动和操作 IOC，理解 IOC class 生成了什么。 |
-| [IOC 端口分配](port-allocation.zh-CN.md) | 弄清哪个实例用哪个端口、如何新增实例，以及为什么 CA/PVA 不需要逐实例分配端口。 |
+| [IOC 端口管理](port-allocation.zh-CN.md) | 弄清哪个实例用哪个控制台端口、如何新增实例，以及如何固定 CA/PVA 服务端口。 |
 | [排障](troubleshooting.zh-CN.md) | QA 告警、构建失败，或 IOC 在 target 上起不来。 |
 
 ## 阅读顺序

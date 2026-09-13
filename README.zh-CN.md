@@ -16,10 +16,11 @@
 | `epics-base`     | 7.0.10         | `/opt/epics/base[-7.0.10]`                   |
 | `epics-asyn`     | 4.46           | `/opt/epics/modules/asyn[-4.46]`             |
 | `epics-autosave` | 6.0            | `/opt/epics/modules/autosave[-6.0]`          |
-| `epics-demo-ioc` | 1.0            | `/opt/epics/iocs/epics-demo-ioc[-1.0]`       |
+| `epics-asyn-scope-ioc` | 1.0 | `/opt/epics/iocs/asyn-scope-ioc[-1.0]`      |
 | `procserv`       | master（`+git`） | `/usr/bin/procServ`                        |
 
-`epics-demo-ioc` 既是示例，也是 BLM IOC 的模板，IOC 文档都以它为例。
+`epics-asyn-scope-ioc` 既是示例，也是 BLM IOC 的模板：它构建的就是 asyn 自带的
+模拟示波器测试 IOC。IOC 文档都以它为例。
 `procserv` 跟随上游 master，因此每次构建都会重新拉取和编译，需要联网。
 
 ## bbclass
@@ -168,7 +169,7 @@ CONFIG_epics-base
 CONFIG_epics-asyn
 CONFIG_epics-autosave
 CONFIG_procserv
-CONFIG_epics-demo-ioc
+CONFIG_epics-asyn-scope-ioc
 ```
 
 然后打开 rootfs 配置菜单确认这些包已勾选：
@@ -182,13 +183,13 @@ petalinux-config -c rootfs
 或者把它加到 `project-spec/meta-user/conf/user.conf`：
 
 ```bitbake
-IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-demo-ioc"
+IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-asyn-scope-ioc"
 ```
 
 不要同时使用两种方式。
 
-`epics-demo-ioc` 依赖 `epics-asyn`、`epics-autosave`、`procserv` 和 `socat`，
-只勾选它就会带出其余的包。如果想单独构建和检查各个包，就保留显式条目。
+`epics-asyn-scope-ioc` 依赖 `epics-asyn` 和 `procserv`，只勾选它就会带出这两者；
+`epics-autosave` 只会被用到它的 recipe 带入。
 
 ## 构建
 
@@ -196,7 +197,7 @@ IMAGE_INSTALL:append = " epics-base epics-asyn epics-autosave procserv epics-dem
 
 ```bash
 petalinux-build -c epics-base
-petalinux-build -c epics-demo-ioc
+petalinux-build -c epics-asyn-scope-ioc
 ```
 
 再构建完整镜像：
@@ -219,7 +220,7 @@ target 启动后检查：
 /opt/epics/base-7.0.10/lib/<目标体系结构>/
 /opt/epics/modules/asyn -> asyn-4.46
 /opt/epics/modules/autosave -> autosave-6.0
-/opt/epics/iocs/epics-demo-ioc -> epics-demo-ioc-1.0
+/opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /etc/profile.d/epics.sh
 /usr/bin/procServ
 ```
@@ -230,8 +231,8 @@ target 上的开发环境提供了什么，见 [EPICS Base](docs/epics-base.zh-C
 IOC 应用的部分见 [IOC 应用](docs/ioc.zh-CN.md)，简要流程：
 
 ```bash
-systemctl enable --now 'epics-demo-ioc@ioc1'
-caget ioc1:cmd
+systemctl enable --now 'epics-asyn-scope-ioc@ioc0'
+caget ioc0:scope1:Waveform1.VAL
 ```
 
 ## 排障

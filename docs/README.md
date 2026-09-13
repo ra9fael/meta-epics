@@ -12,7 +12,7 @@ This index is part of the [meta-epics](../README.md) layer.
 | [EPICS Base](epics-base.md) | know what Base installs on the target, how the cross build is wired, and what an on-target development setup gets you. |
 | [Support modules](modules.md) | add or maintain a module recipe such as `asyn` or `autosave`. |
 | [IOC applications](ioc.md) | build, package, start and operate an IOC, and understand what the IOC classes generate. |
-| [IOC port allocation](port-allocation.md) | know which instance owns which port, add an instance, or understand why CA/PVA need no per-instance ports. |
+| [IOC port management](port-allocation.md) | know which instance owns which console port, add an instance, or pin CA/PVA service ports. |
 | [Troubleshooting](troubleshooting.md) | a QA check fired, a build failed, or an IOC does not come up on the target. |
 
 ## Reading order

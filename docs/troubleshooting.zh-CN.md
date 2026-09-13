@@ -106,18 +106,28 @@ asyn 的 `-DHAVE_DEVINT64` 这类特性宏是模块 Makefile 用 `+=` 加的。�
 链路里）。服务端端口用 `drvAsynIPServerPortConfigure` 配置，参数必须是
 `<host>:<port>` 形式。
 
-### 两个实例抢同一个端口
+### 两个实例抢控制台端口
 
-`ioc-ports.sh --audit` 报告重复的 `IOC_INSTANCE_INDEX`，`--show` 打印某个序号
-解析出的端口。实例 env 文件里显式写的端口会覆盖推导值，这是意外的端口冲突最
-常见的来源。
+槽位编号对整个 target 全局生效，所以两个**不同** IOC 之间重复的
+`IOC_INSTANCE_INDEX` 与同一 IOC 内部的重复一样会撞号。`ioc-ports.sh --audit`
+扫描 `/etc/epics/*/*.env` 并报告冲突文件；`--next` 取第一个空闲槽位。实例 env
+文件里显式写的 `PS_PORT` 会覆盖推导值，这是意外冲突最常见的来源。
+
+### 客户端连不上某一个特定的 IOC
+
+同网段客户端无需任何配置：每个 IOC 都会收到广播搜索并以自己的端口应答。某个
+实例连不上时，先检查它是否固定了端口（固定后客户端需要
+`EPICS_CA_ADDR_LIST="<ip>:<ca端口>"`），或者客户端是否在另一个网段——广播到不了
+那里。不要用客户端的 `EPICS_CA_SERVER_PORT` 来"选实例"：它是客户端自己的单一
+搜索端口，不是逐 IOC 的选择器。
 
 ## 在 target 上
 
 ```bash
-systemctl status 'epics-demo-ioc@ioc1' --no-pager
-journalctl -u 'epics-demo-ioc@ioc1' -n 200
+systemctl status 'epics-asyn-scope-ioc@ioc0' --no-pager
+journalctl -u 'epics-asyn-scope-ioc@ioc0' -n 200
 ss -ltnp | grep -E '2100[01]|2101[01]'
+cat /run/epics/epics-asyn-scope-ioc/ioc0.info
 telnet <板卡IP> 21000          # procServ 控制台 -> iocsh 提示符
 ```
 

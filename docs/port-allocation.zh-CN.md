@@ -1,73 +1,47 @@
-# IOC 端口分配
+# IOC 端口管理
 
 [English](port-allocation.md) | 简体中文
 
 本文属于[文档索引](README.zh-CN.md)。
 
-target 上每个跑在 procServ 下的 IOC 实例都需要一个唯一的监听端口：procServ
-控制台一个，IOC 自己打开的应用 socket 也要有。本文定义这些端口如何分配，让
-多个 IOC 类型、以及同一类型的多个实例能在同一块板卡上共存而互不冲突。
+同一块 target 上的多个 IOC 实例各自需要一个控制台端口，视应用而定还需要自己的
+服务端口。这部分 EPICS 本身已经管了大半：主机上的第一个 IOC 拿到默认的 CA/PVA
+端口，后续每个 IOC 自动退到动态端口并通过 beacon 广播。EPICS 唯一不知道的就是
+procServ 控制台，所以本 layer 唯一静态分配的就是它。
 
-recipe 和实例如何配置见 [ioc.zh-CN.md](ioc.zh-CN.md)。
+| 层 | 端口 | 管理方式 |
+|----|------|----------|
+| procServ 控制台 | `21000 + 10 * 槽位`（21000、21010……） | **静态槽位分配** |
+| IOC 应用监听口（`APP_PORT_1/2`） | 槽位 `+1`/`+2`，可覆盖 | 可选，仅开 socket 的 IOC 需要 |
+| CA 服务口 | 不分配：动态（第一个 IOC 得 5064） | EPICS 原生；可选固定 |
+| PVA 服务口 | 不分配：动态（第一个 IOC 得 5075） | EPICS 原生；可选固定 |
+| CA beacon/repeater、PVA 广播 | 5065 / 5076 | 主机上所有 IOC 共享 |
 
-下一节解释为什么 EPICS 的客户端端口（CA、PVA）**不**在这套方案里。
+recipe 与实例如何配置见 [ioc.zh-CN.md](ioc.zh-CN.md)。
 
-## 范围与结构
+## 槽位编号
 
-站点使用的端口段是 `21000-21999`，由 `EPICS_IOC_PORT_BASE` 决定（class 默认
-`21000`）。它低于 Linux 的临时端口段（`32768-60999`），短生命周期的出站连接
-不会抢走 IOC 的端口。
+`IOC_INSTANCE_INDEX`（0–99）是操作员需要指定的唯一数字。它**对整个 target 全局
+生效**：不同 IOC 类型、同一类型的不同实例，都从同一个池子里拿号——因为不能
+冲突的是控制台端口。
 
-```
-21000 -+-- block 0（IOC 类型 0）  21000-21099
-       +-- block 1（IOC 类型 1）  21100-21199
-       +-- ...
-       +-- block 9                21900-21999
-```
-
-* **每个 IOC 类型一块 100 口。** recipe 设置 `IOC_PORT_BLOCK_INDEX`（0-9），
-  class 计算
-  `IOC_PORT_BLOCK = EPICS_IOC_PORT_BASE + 100 * IOC_PORT_BLOCK_INDEX`。
-* **每个实例步长 10 口。** 实例的 env 文件设置 `IOC_INSTANCE_INDEX`（0-9），
-  启动脚本计算
-  `INSTANCE_BASE = IOC_PORT_BLOCK + 10 * IOC_INSTANCE_INDEX`。
-
-一个实例 10 个端口内的偏移：
-
-| 偏移     | 变量         | 用途                                           |
-|----------|--------------|------------------------------------------------|
-| `+0`     | `PS_PORT`    | procServ 控制台（telnet）                      |
-| `+1`     | `APP_PORT_1` | IOC 主监听口（如 demo 的回显端口）             |
-| `+2`     | `APP_PORT_2` | IOC 次监听口                                   |
-| `+3..+9` | —            | 预留（将来需要固定 PVA/CA 时使用）             |
-
-容量：该端口段内 10 个 IOC 类型 × 10 个实例 × 10 个端口。
-
-## 端口块登记表
-
-| 块编号 | IOC 类型              | 端口段      | 备注                |
-|--------|-----------------------|-------------|---------------------|
-| 0      | `epics-demo-ioc`      | 21000-21099 | 示例/模板           |
-| 1      | `impcas-ioc-blm-zux`  | 21100-21199 | BLM 生产 IOC        |
-| 2-9    | 预留                  | 21200-21999 |                     |
-
-## 实例表
-
-| IOC 类型             | 实例     | `IOC_INSTANCE_INDEX` | `PS_PORT` | `APP_PORT_1` | `APP_PORT_2` |
-|----------------------|----------|----------------------|-----------|--------------|--------------|
-| `epics-demo-ioc`     | `ioc1`   | 0                    | 21000     | 21001        | 21002        |
-| `epics-demo-ioc`     | `ioc2`   | 1                    | 21010     | 21011        | 21012        |
-| `impcas-ioc-blm-zux` | `iocblm` | 0                    | 21100     | 21101        | 21102        |
-
-换算由随 IOC 一起安装的 `<iocdir>/ioc-ports.sh` 完成：
+实例 env 文件里设置：
 
 ```sh
-ioc-ports.sh --show     # 打印该实例解析出的端口
-ioc-ports.sh --next     # 打印第一个空闲的 IOC_INSTANCE_INDEX
-ioc-ports.sh --audit    # 扫描实例 env 文件并报告冲突
+IOC_INSTANCE_INDEX=1        # 控制台 21010，应用口 21011/21012
+IOC_PREFIX=ioc1:
+IOC_STATE=/var/lib/<PN>/ioc1
 ```
 
-新实例从随包的示例复制而来：
+换算由随每个 IOC 安装的 `<iocdir>/ioc-ports.sh` 完成：
+
+```sh
+ioc-ports.sh --show [实例名]   # 推导出的端口，以及运行中实例的实际 endpoint
+ioc-ports.sh --next            # 全 target 范围内第一个空闲槽位
+ioc-ports.sh --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
+```
+
+新实例从随包示例复制：
 
 ```sh
 cp /etc/epics/<PN>/example.env /etc/epics/<PN>/<name>.env
@@ -75,31 +49,51 @@ cp /etc/epics/<PN>/example.env /etc/epics/<PN>/<name>.env
 systemctl enable --now '<PN>@<name>'
 ```
 
-提供 `ioc-ports.sh --next` 是为了不必人工记序号。实例 env 文件里显式写出的
-`PS_PORT`、`APP_PORT_1` 或 `APP_PORT_2` 会覆盖推导值。
+## procServ 控制台（唯一静态分配的口）
 
-## 客户端如何找到 PV（CA 与 PVA 不在本方案内）
+控制台没有任何发现机制——procServ 不向任何地方注册——所以每个实例拿到确定性的
+端口 `EPICS_IOC_PORT_BASE + 10 * 序号`；一旦撞号，第二个 IOC 会显式启动失败而不是
+悄悄互踩。
 
-CA 或 PVA 客户端不需要「PV 到端口」的映射表：端口由协议在运行期解析。CA 把
-搜索发往 UDP 5064，服务端的搜索 socket 以地址扇出方式打开（`SO_REUSEPORT`），
-因此主机上的**每一个** IOC 都能收到；拥有该 PV 的实例应答，应答里带着它自己的
-TCP 端口。PVA 同理，通过 UDP beacon 携带服务端端口。
+两个配套手段：
 
-这就是 CA/PVA 对所有实例都保持系统默认（`5064`/`5065` 与 `5075`/`5076`）的
-原因：多个 IOC 在一台主机上共存，客户端只靠 PV 名字区分（`ioc1:...` 与
-`ioc2:...`）。
+* procServ 以 `-I /run/epics/<PN>/<实例>.info` 运行，把运行中服务器的 PID 和实际
+  endpoint 落盘；`ioc-ports.sh --show <实例名>` 会打印出来。
+* 控制台是明文 telnet，默认 `PROCSERV_ARGS="-A"` 时任何主机都能连。可以按实例
+  收紧（`PROCSERV_ARGS="-r"` 只绑本机）或用防火墙限制 21000 段；procServ 还支持
+  用 UNIX domain socket（`unix:/路径` endpoint）提供控制台，完全不占 TCP 端口。
 
-因此 `EPICS_CA_ADDR_LIST` 只需要写要搜索的主机：
+## CA 与 PVA（动态，可选固定）
 
-| 场景                        | 填法                                                   |
-|-----------------------------|--------------------------------------------------------|
-| 客户端与板卡在同一广播域    | 留空（用默认广播），或填板卡 IP                        |
-| 客户端在另一网段            | `EPICS_CA_ADDR_LIST=<板卡IP>`，多块板卡用空格分隔      |
-| 端口                        | **不要**追加端口，`5064` 是隐式的                      |
+不需要分配。CA 服务端的 UDP 搜索 socket 以地址扇出方式打开（`SO_REUSEPORT`），
+广播搜索能到达主机上的**每一个** IOC；拥有该 PV 的实例应答，应答里带着它自己的
+TCP 端口。拿不到默认端口时——被别的 IOC 占了——服务端自动改用动态端口并在
+beacon 里通告。PVA 同理：UDP 搜索口（5076）共享，TCP 口在搜索应答和 beacon 里
+通告。
 
-只有把 CA 服务端从 `5064` 挪走时才需要写 `ip:port`，而且每个客户端都得跟着改
-—— 这正是它保持默认的原因。
+所以 target 上第一个 IOC 跑在 5064/5075，其余都在动态端口上，全程零配置。
 
-控制台端口（`21000`、`21010`……）和应用端口（`APP_PORT_1`）属于 **telnet 操作
-员**和连接 IOC 自身 socket 的程序。它们不是 CA 端口，绝不能写进
-`EPICS_CA_ADDR_LIST`；对应关系见上面的表，实例 env 文件里也有记录。
+只在需要确定性时才固定端口——防火墙、跨网段客户端、需要写入文档的部署：
+
+```sh
+# 实例 env 文件里；推荐值保持槽位布局：
+CA_PORT=21013        # 基址 + 10*序号 + 3
+PVA_PORT=21014       # 基址 + 10*序号 + 4
+```
+
+启动脚本会在 IOC 启动前把它们导出为
+`EPICS_CA_SERVER_PORT` / `EPICS_PVAS_SERVER_PORT`。
+
+## 客户端配置
+
+| 场景 | CA（caget/caput/camonitor） | PVA（pvget/QSRV） |
+|---|---|---|
+| 客户端与板卡在同一广播域 | 所有槽位都零配置 | 所有槽位都零配置 |
+| 跨网段 / 防火墙 | 先固定 IOC 端口（见上），再设 `EPICS_CA_ADDR_LIST="<ip>:<ca端口>"`，多个用空格分隔；`EPICS_CA_AUTO_ADDR_LIST=NO` 可全显式 | 先固定 IOC 端口，再设 `EPICS_PVA_ADDR_LIST="<ip>:5076"`（广播口共享） |
+
+注意：
+
+* **不要**在客户端用 `EPICS_CA_SERVER_PORT` 来"选某个 IOC"：它是客户端自己的
+  单一搜索端口，不是逐 IOC 的选择器。
+* 控制台端口和应用端口不是 CA 端口，绝不能出现在 `EPICS_CA_ADDR_LIST` 里。
+* 广播不跨网段——这正是提供固定端口选项的原因。

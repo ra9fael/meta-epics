@@ -120,19 +120,32 @@ record, `asynOctetCmdResponse` bakes it into the link). A server port is
 configured with `drvAsynIPServerPortConfigure`, whose argument must be
 `<host>:<port>`.
 
-### Two instances fight over a port
+### Two instances fight over the console port
 
-`ioc-ports.sh --audit` reports duplicate `IOC_INSTANCE_INDEX` values, and
-`--show` prints what an index resolves to. An explicit port in an instance env
-file overrides the derived one, which is the usual source of an accidental
+The slot index is global to the target, so a duplicate `IOC_INSTANCE_INDEX`
+between two *different* IOCs collides just like one within a single IOC.
+`ioc-ports.sh --audit` scans `/etc/epics/*/*.env` and reports the offending
+files; `--next` picks the first free slot. An explicit `PS_PORT` in an instance
+env file overrides the derived one, which is the usual source of an accidental
 collision.
+
+### A client cannot reach one specific IOC
+
+Same-subnet clients need no configuration: every IOC receives the broadcast
+search and answers with its own port. If one instance is unreachable, check
+whether it pinned its ports (then the client needs
+`EPICS_CA_ADDR_LIST="<ip>:<ca-port>"`) or whether the client is on another
+subnet, where broadcasts do not go. Do not use `EPICS_CA_SERVER_PORT` on the
+client for this: it is the client's own single search port, not a per-IOC
+selector.
 
 ## On the target
 
 ```bash
-systemctl status 'epics-demo-ioc@ioc1' --no-pager
-journalctl -u 'epics-demo-ioc@ioc1' -n 200
+systemctl status 'epics-asyn-scope-ioc@ioc0' --no-pager
+journalctl -u 'epics-asyn-scope-ioc@ioc0' -n 200
 ss -ltnp | grep -E '2100[01]|2101[01]'
+cat /run/epics/epics-asyn-scope-ioc/ioc0.info
 telnet <board-ip> 21000          # procServ console -> iocsh prompt
 ```
 
