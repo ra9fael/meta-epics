@@ -22,13 +22,10 @@ inherit epics-ioc-systemd
 
 EPICS_MODULE_NAME = "asyn-scope-ioc"
 
-DEPENDS += "epics-asyn"
-RDEPENDS:${PN} += "epics-asyn"
-
-# testAsynPortDriver links the staged asyn module (see do_configure:append), so
-# the IOC needs asyn's runtime library and its search path.
-EPICS_RELEASE_EXTRA = "ASYN = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/asyn"
-EPICS_IOC_LIBDIRS = "${EPICS_PREFIX}/modules/asyn/lib/${EPICS_TARGET_ARCH}"
+# One entry replaces four declarations: DEPENDS and RDEPENDS gain epics-asyn,
+# configure/RELEASE gains the staged ASYN path, and the IOC's rpath gains the
+# asyn library directory.
+EPICS_MODULES = "asyn"
 
 IOC_APP_NAME = "testAsynPortDriver"
 IOC_PATH = "iocBoot/ioctestAsynPortDriver"
