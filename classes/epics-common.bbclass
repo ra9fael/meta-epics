@@ -112,6 +112,14 @@ python () {
     libdirs = " ".join(libdirs)
     if not (d.getVar("EPICS_IOC_LIBDIRS") or "").strip():
         d.setVar("EPICS_IOC_LIBDIRS", libdirs)
+
+    # A recipe that links other EPICS modules has no use for the
+    # host-architecture pass: it would link host copies against host module
+    # libraries that are deliberately not built or packaged. Clear
+    # EPICS's cross-arch-on-host dependency (see EPICS_MAKE_EXTRA) unless the
+    # recipe set it.
+    if not (d.getVar("EPICS_MAKE_EXTRA") or "").strip():
+        d.setVar("EPICS_MAKE_EXTRA", "CROSS_ARCHS=")
 }
 
 # Write the target toolchain settings. The full BitBake compiler commands are
