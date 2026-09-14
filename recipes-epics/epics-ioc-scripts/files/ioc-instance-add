@@ -1,0 +1,28 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 IMPCAS
+#
+# SPDX-License-Identifier: MIT
+
+# Create an instance env file with the next free IOC_INSTANCE_INDEX. Installed
+# into every IOC directory built by epics-ioc-systemd.
+
+set -e
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+[ -r "$HERE/ioc-env" ] || { echo "$0: missing $HERE/ioc-env" >&2; exit 1; }
+. "$HERE/ioc-env"
+. "$HERE/ioc-ports.sh"
+
+[ -n "$1" ] || { echo "usage: $0 <instance-name>" >&2; exit 2; }
+
+_name="$1"
+_target="$ENV_DIR/$_name.env"
+[ -e "$_target" ] && { echo "$_target already exists" >&2; exit 1; }
+
+_index="$(ioc_ports_next)"
+cat > "$_target" <<EOF
+IOC_INSTANCE_INDEX=$_index
+IOC_PREFIX=$_name:
+IOC_STATE=/var/lib/$PN/$_name
+EOF
+echo "created $_target (IOC_INSTANCE_INDEX=$_index)"
