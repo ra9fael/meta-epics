@@ -6,14 +6,17 @@ HOMEPAGE = "https://github.com/ralphlange/procServ"
 LICENSE = "GPL-3.0-only"
 LIC_FILES_CHKSUM = "file://COPYING;md5=d32239bcb673463ab874e80d47fae504"
 
-# Track the latest master so the console keeps up with upstream fixes. AUTOREV
-# makes BitBake query the remote on every parse (BB_SRCREV_POLICY defaults to
-# "clear") and marks the recipe BB_DONT_CACHE, so it is rebuilt each run and
-# needs network access. PV contains "+git", so package.bbclass appends the
-# revision to PKGV and rootfs upgrades are seen when master moves.
+# Master, pinned to a commit. AUTOREV was tried first: it makes BitBake run
+# "git ls-remote" on every single recipe parse, so one flaky network link
+# breaks every build at parse time and the recipe is rebuilt each run. Pin the
+# commit instead and re-resolve master when an update is wanted:
+#   git ls-remote https://github.com/ralphlange/procServ HEAD
+# PV contains "+git", so package.bbclass appends the revision to PKGV and
+# rootfs upgrades are seen when the pin moves.
 PV = "2.8.0+git"
 SRC_URI = "git://github.com/ralphlange/procServ;protocol=https;branch=master"
-SRCREV = "${AUTOREV}"
+# master, aeb33d2083 as of 2026-09-14.
+SRCREV = "aeb33d20837291f33b97faca51454c61b1c3329c"
 
 S = "${WORKDIR}/git"
 
