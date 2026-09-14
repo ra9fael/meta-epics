@@ -16,9 +16,9 @@ EPICS_INSTALL_BASE = "${EPICS_PREFIX}/iocs"
 EPICS_INSTALL_SUBDIRS ?= "bin lib db dbd iocBoot"
 
 # Absolute runtime library directories of the support modules this IOC links,
-# space separated, e.g.
-#   EPICS_IOC_LIBDIRS = "${EPICS_PREFIX}/modules/asyn/lib/${EPICS_TARGET_ARCH}"
-# They are turned into rpath entries; the Base library directory is added by
+# space separated. Derived from EPICS_MODULES (one entry per module); set it
+# explicitly only to add directories EPICS_MODULES does not cover. They are
+# turned into rpath entries; the Base library directory is added by
 # epics-module already.
 EPICS_IOC_LIBDIRS ?= ""
 
