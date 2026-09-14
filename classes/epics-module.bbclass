@@ -65,6 +65,15 @@ do_configure() {
     if [ "${EPICS_WRITE_RELEASE}" = "1" ]; then
         epics_generate_release
     fi
+
+    # A module that links other EPICS modules needs an rpath to each of their
+    # library directories -- both so its own executables link (the linker
+    # resolves the DT_NEEDED of linked module libraries through it) and so
+    # they load on the target without LD_LIBRARY_PATH.
+    for modlibdir in ${EPICS_MODULE_LIBDIRS}; do
+        echo "USR_LDFLAGS += -Wl,-rpath,${modlibdir}" \
+            >> ${S}/${EPICS_CONFIG_SITE_FILE}
+    done
 }
 
 do_compile() {

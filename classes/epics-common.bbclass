@@ -96,7 +96,9 @@ python () {
             var, directory = entry.split("=", 1)
         else:
             var, directory = entry.upper(), entry
-        depends.append("epics-" + directory)
+        # Recipe names are lower case even when the module directory is not
+        # (iocStats -> epics-iocstats).
+        depends.append("epics-" + directory.lower())
         release.append("%s = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/%s"
                        % (var, directory))
         libdirs.append("${EPICS_PREFIX}/modules/%s/lib/${EPICS_TARGET_ARCH}"
@@ -110,6 +112,7 @@ python () {
         d.setVar("EPICS_RELEASE_EXTRA", "\\n".join(release))
 
     libdirs = " ".join(libdirs)
+    d.setVar("EPICS_MODULE_LIBDIRS", libdirs)
     if not (d.getVar("EPICS_IOC_LIBDIRS") or "").strip():
         d.setVar("EPICS_IOC_LIBDIRS", libdirs)
 

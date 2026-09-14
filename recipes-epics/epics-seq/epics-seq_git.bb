@@ -4,9 +4,11 @@ the seq runtime library."
 HOMEPAGE = "https://github.com/epics-modules/sequencer"
 LICENSE = "EPICS"
 LIC_FILES_CHKSUM = "file://LICENSE;md5=9738eff23564c3683d154e44cc154fbb"
+PV = "2.2.9+git"
 SRC_URI = "git://github.com/epics-modules/sequencer;protocol=https;nobranch=1"
 # Upstream tag R2-2-9.
-SRCREV = "b21d8a8763599326115ebbba6c62905d814b3ccb"
+# master, de4f7c21fb73 as of 2026-09-14.
+SRCREV = "de4f7c21fb73a4fe780fa25c78d725ac050409de"
 S = "${WORKDIR}/git"
 inherit epics-module
 EPICS_MODULE_NAME = "seq"
