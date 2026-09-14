@@ -44,21 +44,41 @@ inherit epics-module
 # BPN 是 epics-<name>，所以必须显式指定 target 上的模块名。
 EPICS_MODULE_NAME = "<name>"
 
-DEPENDS += "<构建期依赖>"
-RDEPENDS:${PN} += "<运行期依赖>"
+# 每个列出的模块都会派生出对 epics-<目录> 的 DEPENDS 和 RDEPENDS、一条
+# configure/RELEASE 行，以及（经 epics-ioc）一条 rpath。条目为目录名
+# （RELEASE 变量名 = 大写）或 "VARIABLE=目录" 形式。
+EPICS_MODULES = "asyn autosave"
 
-# 对其他 EPICS 模块的依赖，从 sysroot 解析。
-EPICS_RELEASE_EXTRA = "\
-    <MODULE> = ${RECIPE_SYSROOT}${EPICS_PREFIX}/modules/<module>"
+DEPENDS += "<非 EPICS 的构建期依赖>"
+RDEPENDS:${PN} += "<非 EPICS 的运行期依赖>"
 
 # 裁剪成使用方需要的部分；不存在的目录会被跳过。
 EPICS_INSTALL_SUBDIRS = "lib db dbd include cfg"
 ```
 
 `epics-module` 已经依赖 `epics-base` 并在 `configure/RELEASE` 里设置了
-`EPICS_BASE`；`DEPENDS` 和 `EPICS_RELEASE_EXTRA` 只需要写额外的模块。
+`EPICS_BASE`；额外的 EPICS 模块通过 `EPICS_MODULES` 声明，非 EPICS 的依赖走
+`DEPENDS` 和 `RDEPENDS`。
 
 ## 本 layer 中的模块
+
+| recipe（`epics-...`） | 模块（tag） | 依赖 |
+|------------------------|-------------|------|
+| `epics-asyn` | asyn (R4-46) | -- |
+| `epics-autosave` | autosave (R6-0) | -- |
+| `epics-seq` | seq (R2-2-9) | -- |
+| `epics-sscan` | sscan (R2-12) | seq |
+| `epics-calc` | calc (R3-7-5) | seq, sscan |
+| `epics-busy` | busy (R1-7-4) | asyn, autosave |
+| `epics-iocstats` | iocStats (4.0.1) | -- |
+| `epics-caputlog` | caPutLog (R4.2) | -- |
+| `epics-caputrecorder` | caputRecorder (R1-7-6) | -- |
+| `epics-alive` | alive (R1-4-1) | -- |
+| `epics-xxx` | xxx (R6-3) | asyn, autosave |
+| `epics-stream` | stream (2.8.26) | asyn, seq, sscan, calc, pcre |
+
+依赖链遵循上游表格（`SNCSEQ -> SSCAN -> CALC`，`ASYN` 可选集成 CALC/SSCAN，
+`STREAM -> ASYN + CALC + SSCAN`）。
 
 ### asyn 4.46
 
@@ -82,18 +102,32 @@ EPICS_INSTALL_SUBDIRS = "lib db dbd include cfg templates html documentation"
 只依赖 Base。它的 `asVerify` 是 `PROD_HOST`，target 构建不会产出，因此默认的
 安装子目录就够用。
 
+### seq 2.2.9
+
+sequencer 构建 `snc` host 编译器——依赖它的 recipe 要用它编译 `.st` 程序——
+因此它构建 host pass（`EPICS_HOST_PASS = "1"`），并把 host 的 bin/lib stage 进
+sysroot（`EPICS_STAGE_HOST_TOOLS = "1"`）。`re2c-native` 是构建依赖：`snc` 的
+`lexer.c` 由 re2c 生成，`configure/CONFIG_SITE` 期望它在任务 PATH 上。使用方
+声明为 `EPICS_MODULES = "SNCSEQ=seq"`——RELEASE 变量名（SNCSEQ）与目录名
+（seq）不一致。
+
+### busy 与 xxx
+
+`busy` 链接 asyn 和 autosave；`xxx` 是上游的模板模块，作为新 recipe 的参考
+保留。两者都跳过 host 体系结构的 pass（由 `EPICS_MODULES` 派生，见下）。
+
 ## 新增一个模块
 
 1. 创建 `recipes-epics/<分组>/epics-<name>_<version>.bb`，固定 `SRCREV`，写好
    `LICENSE` 与 `LIC_FILES_CHKSUM`。
 2. `inherit epics-module`；当模块名与 `epics-<name>` 不同时，设置
    `EPICS_MODULE_NAME` 为模块自己的名字。
-3. 构建期依赖写进 `DEPENDS`，运行期库依赖写进 `RDEPENDS:${PN}`；shlibs 扫描
-   看不到 `${EPICS_PREFIX}` 下的内容。
-4. 用 `EPICS_RELEASE_EXTRA` 指向 stage 进来的前置模块，多个条目用 `\n` 分隔。
-5. 裁剪 `EPICS_INSTALL_SUBDIRS`，并从 `DIRS` 里删掉会在 target 侧编出测试程序
+3. 在 `EPICS_MODULES` 里声明它构建所依赖的 EPICS 模块（每个一条；由此派生出
+   `DEPENDS`、`RDEPENDS:${PN}`、`configure/RELEASE` 行和 IOC 的 rpath 条目），
+   并跳过 host 体系结构 pass——否则会链接到未构建未打包的 host 模块库。
+4. 裁剪 `EPICS_INSTALL_SUBDIRS`，并从 `DIRS` 里删掉会在 target 侧编出测试程序
    的目录。
-6. 单独构建并检查结果：
+5. 单独构建并检查结果：
 
    ```bash
    petalinux-build -c epics-<name>
@@ -115,11 +149,5 @@ IOC 应用处理了这件事。新增这类模块时，要准备像 `epics-ioc` 
 
 ## 计划中的模块
 
-```text
-SNCSEQ -> SSCAN -> CALC -> ASYN -> STREAM
-                 \       \-> BUSY
-AUTOSAVE -----------> BUSY
-XXX -> 所有已选模块
-```
-
-`asyn` 和 `autosave` 已完成；新增模块按上面的清单来。
+依赖表里的模块均已打包。上游生态中尚未打包的（等有 recipe 真正需要时再加）：
+`recsync`、`devSnmp`、`opcua`、`ether_ip`。
