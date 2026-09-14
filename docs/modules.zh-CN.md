@@ -66,15 +66,19 @@ EPICS_INSTALL_SUBDIRS = "lib db dbd include cfg"
 |------------------------|-------------|------|
 | `epics-asyn` | asyn (R4-46) | -- |
 | `epics-autosave` | autosave (R6-0) | -- |
-| `epics-seq` | seq (R2-2-9) | -- |
-| `epics-sscan` | sscan (R2-12) | seq |
-| `epics-calc` | calc (R3-7-5) | seq, sscan |
-| `epics-busy` | busy (R1-7-4) | asyn, autosave |
+| `epics-seq` | seq (master) | -- |
+| `epics-sscan` | sscan (master) | seq |
+| `epics-calc` | calc (master) | seq, sscan |
+| `epics-busy` | busy (master) | asyn, autosave |
 | `epics-iocstats` | iocStats (4.0.1) | -- |
 | `epics-caputlog` | caPutLog (R4.2) | -- |
 | `epics-caputrecorder` | caputRecorder (R1-7-6) | -- |
 | `epics-alive` | alive (R1-4-1) | -- |
-| `epics-xxx` | xxx (R6-3) | asyn, autosave |
+| `epics-xxx` | xxx (master) | asyn, autosave |
+| `epics-mcoreutils` | MCoreUtils (master) | -- |
+| `epics-pcas` | pcas (master) | -- |
+| `epics-autoparamdriver` | autoparamDriver (v2.1.0) | asyn |
+| `epics-mqtt` | mqtt (1.0.0) | asyn, autoparamDriver, paho |
 | `epics-stream` | stream (2.8.26) | asyn, seq, sscan, calc, pcre |
 
 依赖链遵循上游表格（`SNCSEQ -> SSCAN -> CALC`，`ASYN` 可选集成 CALC/SSCAN，
