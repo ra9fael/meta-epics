@@ -168,9 +168,19 @@ instance on the host receives the broadcast search and replies with its own
 port:
 
 ```bash
-caget ioc0:scope1:Waveform1.VAL
-caget ioc1:scope1:Waveform1.VAL             # the other instance, still no config
+caget ioc0:scope1:UpdateTime                # a writable ao record
+caget ioc0:scope1:Waveform_RBV              # the simulated waveform
+caget ioc1:scope1:Waveform_RBV              # the other instance, still no config
 ```
+
+The waveform records of this IOC are read-only (`Waveform_RBV`,
+`TimeBase_RBV`); the writable records are `Run`, `VoltOffset`, `TriggerDelay`,
+`NoiseAmplitude`, `UpdateTime` and the three `*Select` enumerations. A Phoebus
+display for the oscilloscope is installed on the target at
+`/opt/epics/iocs/asyn-scope-ioc-1.0/opi/asyn-scope-ioc0.bob` -- copy it to the
+client and open it in Phoebus. Its default macros are `P=ioc0:`, `R=scope1:`,
+so it points at the ioc0 instance out of the box; another instance only needs
+`-m "P=ioc1:"` in the client.
 
 The simulated oscilloscope does not open sockets of its own, so its instances
 use no application ports. An IOC that does -- one that acts as a Modbus or

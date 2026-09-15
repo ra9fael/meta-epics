@@ -160,9 +160,17 @@ telnet <板卡IP> 21010                        # ioc1 的控制台
 自己的端口应答：
 
 ```bash
-caget ioc0:scope1:Waveform1.VAL
-caget ioc1:scope1:Waveform1.VAL             # 另一个实例，同样零配置
+caget ioc0:scope1:UpdateTime                # 可写的 ao 记录
+caget ioc0:scope1:Waveform_RBV              # 模拟波形
+caget ioc1:scope1:Waveform_RBV             # 另一个实例，同样零配置
 ```
+
+这个 IOC 的波形记录是只读的（`Waveform_RBV`、`TimeBase_RBV`）；可写的记录是
+`Run`、`VoltOffset`、`TriggerDelay`、`NoiseAmplitude`、`UpdateTime` 和三个
+`*Select` 枚举。示波器的 Phoebus 显示界面随 IOC 装在目标板的
+`/opt/epics/iocs/asyn-scope-ioc-1.0/opi/asyn-scope-ioc0.bob`——把它拷到客户端用
+Phoebus 打开即可。文件里的默认宏是 `P=ioc0:`、`R=scope1:`，开箱即指向 ioc0
+实例；其他实例只需在客户端加 `-m "P=ioc1:"`。
 
 模拟示波器不自己开 socket，所以它的实例不占用应用口。需要应用口的 IOC——比如
 做 Modbus 或 stream-device 服务端的——在 env 文件里固定，并写入

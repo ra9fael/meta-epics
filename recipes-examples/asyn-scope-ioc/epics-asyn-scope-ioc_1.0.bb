@@ -14,6 +14,7 @@ LIC_FILES_CHKSUM = "file://LICENSE;md5=9f42f43716fb1d5e8498617125cb3c21"
 # upgraded, change SRCREV here and in epics-asyn in the same commit.
 SRC_URI = "git://github.com/epics-modules/asyn;protocol=https;branch=master \
            file://instances \
+           file://opi \
 "
 SRCREV = "76f6164757d54b0b7dae22a911fe78fd20a95525"
 S = "${WORKDIR}/git"
@@ -57,6 +58,12 @@ do_configure:append() {
 
 do_install:append() {
     install_dir=${D}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
+
+    # Phoebus display for the simulated oscilloscope. The default macros in
+    # the file (P=ioc0:, R=scope1:) match the ioc0 instance env, so opening it
+    # works unconfigured; other instances pass -m overrides in the client.
+    install -d ${install_dir}/opi
+    install -m 0644 ${WORKDIR}/opi/*.bob ${install_dir}/opi/
 
     # The instance env supplies the PV prefix; the asyn port name is internal to
     # the IOC process, so it stays as upstream wrote it.
