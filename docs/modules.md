@@ -1,6 +1,6 @@
 # Support modules
 
-English | [简体中文](modules.zh-CN.md)
+English | [简体中文](zh-CN/modules.md)
 
 Part of the [documentation index](README.md).
 

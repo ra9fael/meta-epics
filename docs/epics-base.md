@@ -1,6 +1,6 @@
 # EPICS Base
 
-English | [简体中文](epics-base.zh-CN.md)
+English | [简体中文](zh-CN/epics-base.md)
 
 Part of the [meta-epics documentation](README.md).
 

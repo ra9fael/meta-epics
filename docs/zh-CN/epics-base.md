@@ -1,8 +1,8 @@
 # EPICS Base
 
-[English](epics-base.md) | 简体中文
+[English](../epics-base.md) | 简体中文
 
-本文属于[文档索引](README.zh-CN.md)。
+本文属于[文档索引](README.md)。
 
 ## 范围
 
@@ -21,12 +21,12 @@ EPICS_PREFIX=/opt/epics
 
 Base 是其余 recipe 的构建基础。支持模块安装在 `${EPICS_PREFIX}/modules/`，
 IOC 应用安装在 `${EPICS_PREFIX}/iocs/`；recipe 列表见根目录
-[README](../README.zh-CN.md)，IOC 应用见 [ioc.zh-CN.md](ioc.zh-CN.md)，端口
-分配见 [port-allocation.zh-CN.md](port-allocation.zh-CN.md)。
+[README](../../README.zh-CN.md)，IOC 应用见 [ioc.md](ioc.md)，端口
+分配见 [port-allocation.md](port-allocation.md)。
 
 ## 接入 PetaLinux
 
-完整的接入步骤见根目录 [README](../README.zh-CN.md)，包括添加 layer、配置
+完整的接入步骤见根目录 [README](../../README.zh-CN.md)，包括添加 layer、配置
 rootfs、构建 recipe 与镜像、验证 target 安装。
 
 ## 构建模型

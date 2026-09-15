@@ -7,7 +7,7 @@
 提供 EPICS Base、BLM IOC 所需的支持模块、用于托管 IOC 的进程服务器，以及
 构建和打包 IOC 应用（含逐实例端口分配）所需的 bbclass。
 
-本文是快速上手指南，主题文档在 [`docs/`](docs/README.zh-CN.md) 目录下。
+本文是快速上手指南，主题文档在 [`docs/`](docs/zh-CN/README.md) 目录下。
 
 ## Recipe 列表
 
@@ -36,11 +36,11 @@
 | 文档 | 主题 |
 |------|------|
 | [快速上手](#接入-petalinux) | 即本文：接入、配置、构建。 |
-| [EPICS Base](docs/epics-base.zh-CN.md) | Base 安装了什么、交叉构建如何接线。 |
-| [支持模块](docs/modules.zh-CN.md) | 模块 recipe，如何新增一个。 |
-| [IOC 应用](docs/ioc.zh-CN.md) | IOC 的构建、打包与操作。 |
-| [IOC 端口分配](docs/port-allocation.zh-CN.md) | 哪个实例用哪个端口。 |
-| [排障](docs/troubleshooting.zh-CN.md) | QA 告警、构建失败、target 侧诊断。 |
+| [EPICS Base](docs/zh-CN/epics-base.md) | Base 安装了什么、交叉构建如何接线。 |
+| [支持模块](docs/zh-CN/modules.md) | 模块 recipe，如何新增一个。 |
+| [IOC 应用](docs/zh-CN/ioc.md) | IOC 的构建、打包与操作。 |
+| [IOC 端口分配](docs/zh-CN/port-allocation.md) | 哪个实例用哪个端口。 |
+| [排障](docs/zh-CN/troubleshooting.md) | QA 告警、构建失败、target 侧诊断。 |
 
 ## 接入 PetaLinux
 
@@ -226,9 +226,9 @@ target 启动后检查：
 ```
 
 target 上不应出现 `bin/linux-x86_64/` 这类 host 体系结构目录。完整布局，包括
-target 上的开发环境提供了什么，见 [EPICS Base](docs/epics-base.zh-CN.md)。
+target 上的开发环境提供了什么，见 [EPICS Base](docs/zh-CN/epics-base.md)。
 
-IOC 应用的部分见 [IOC 应用](docs/ioc.zh-CN.md)，简要流程：
+IOC 应用的部分见 [IOC 应用](docs/zh-CN/ioc.md)，简要流程：
 
 ```bash
 systemctl enable --now 'epics-asyn-scope-ioc@ioc0'
@@ -237,7 +237,7 @@ caget ioc0:scope1:Waveform1.VAL
 
 ## 排障
 
-QA 告警、构建失败和 target 侧诊断集中在[排障](docs/troubleshooting.zh-CN.md)
+QA 告警、构建失败和 target 侧诊断集中在[排障](docs/zh-CN/troubleshooting.md)
 里。最常见的两类：
 
 * `buildpaths` QA 告警说明某个进了包的文件残留了构建路径。class 会清洗自己

@@ -1,8 +1,8 @@
 # IOC 应用
 
-[English](ioc.md) | 简体中文
+[English](../ioc.md) | 简体中文
 
-本文属于[文档索引](README.zh-CN.md)。
+本文属于[文档索引](README.md)。
 
 IOC 应用是一棵 `makeBaseApp` 风格的目录树：一个应用目录，含 `configure/`、生成
 IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及带 `st.cmd` 的
@@ -72,7 +72,7 @@ class 会读取的变量：
 | `EPICS_IOC_MULTI_INSTANCE`  | `"0"`                                | 设为 `1` 安装 systemd 模板单元而不是普通单元。 |
 | `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | 要安装的实例 env 文件（源码路径）。 |
 | `EPICS_IOC_START_PRE`       | `""`                                 | procServ 启动前由 `ioc-start.sh` 执行的 shell 语句。 |
-| `EPICS_IOC_PORT_BASE`       | `"21000"`                            | 第一个控制台端口；见 [port-allocation.zh-CN.md](port-allocation.zh-CN.md)。 |
+| `EPICS_IOC_PORT_BASE`       | `"21000"`                            | 第一个控制台端口；见 [port-allocation.md](port-allocation.md)。 |
 
 IOC 链接到的每个模块都必须写进 `RDEPENDS`：shlibs 扫描看不到
 `${EPICS_PREFIX}` 下的内容，推不出来。
@@ -84,7 +84,7 @@ IOC 链接到的每个模块都必须写进 `RDEPENDS`：shlibs 扫描看不到
 
 每个实例都有自己的控制台端口；CA/PVA 服务端口与主机 EPICS 默认共享或动态分配。
 槽位方案、客户端配置以及可选的端口固定见
-[port-allocation.zh-CN.md](port-allocation.zh-CN.md)。
+[port-allocation.md](port-allocation.md)。
 
 实例由单元的实例名选择，实例名同时就是它的 env 文件名：
 
@@ -174,7 +174,7 @@ Phoebus 打开即可。文件里的默认宏是 `P=ioc0:`、`R=scope1:`，开箱
 
 模拟示波器不自己开 socket，所以它的实例不占用应用口。需要应用口的 IOC——比如
 做 Modbus 或 stream-device 服务端的——在 env 文件里固定，并写入
-[port-allocation.zh-CN.md](port-allocation.zh-CN.md) 的端口表。
+[port-allocation.md](port-allocation.md) 的端口表。
 
 ## 为什么 class 要这么做
 

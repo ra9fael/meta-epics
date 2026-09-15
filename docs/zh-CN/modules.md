@@ -1,8 +1,8 @@
 # 支持模块
 
-[English](modules.md) | 简体中文
+[English](../modules.md) | 简体中文
 
-本文属于[文档索引](README.zh-CN.md)。
+本文属于[文档索引](README.md)。
 
 支持模块指用 EPICS 自身构建系统构建、又不是 IOC 应用的东西：`asyn`、
 `autosave`，以及将来的 `calc`、`streamDevice` 等。`epics-module` class 负责
@@ -139,13 +139,13 @@ sysroot（`EPICS_STAGE_HOST_TOOLS = "1"`）。`re2c-native` 是构建依赖：`s
 
    安装树里应有 `lib/<目标体系结构>/*.so`、`dbd/`、`include/`，不含构建路径，
    也没有 host 体系结构的二进制。不符合预期时见
-   [排障](troubleshooting.zh-CN.md)。
+   [排障](troubleshooting.md)。
 
 ## 运行期解析
 
 模块库安装在 `/opt/epics/modules/<name>/lib/${EPICS_TARGET_ARCH}`。class 给
 每个模块都加了指向 Base 的 rpath；IOC 应用通过 `EPICS_IOC_LIBDIRS` 再加自己的
-（见 [ioc.zh-CN.md](ioc.zh-CN.md)）。
+（见 [ioc.md](ioc.md)）。
 
 链接了其他模块库的模块同样需要那条 rpath，而 class 目前没有加 —— 现在只有
 IOC 应用处理了这件事。新增这类模块时，要准备像 `epics-ioc` 那样扩展

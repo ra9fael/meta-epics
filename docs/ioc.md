@@ -1,6 +1,6 @@
 # IOC applications
 
-English | [简体中文](ioc.zh-CN.md)
+English | [简体中文](zh-CN/ioc.md)
 
 Part of the [meta-epics documentation](README.md).
 

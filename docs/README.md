@@ -1,6 +1,6 @@
 # meta-epics documentation
 
-English | [简体中文](README.zh-CN.md)
+English | [简体中文](zh-CN/README.md)
 
 This index is part of the [meta-epics](../README.md) layer.
 
@@ -29,8 +29,9 @@ recipe, [troubleshooting](troubleshooting.md) when something breaks.
 
 ## Conventions
 
-* Every document exists in English and as a `.zh-CN.md` file with the same
-  base name. The first line under the title links to the other language.
+* Every document exists in English (in `docs/`) and in Chinese (in
+  `docs/zh-CN/`) under the same base name. The first line under the title
+  links to the other language.
 * Cross references stay in the reader's language: an English document links to
   English documents, a Chinese document to Chinese ones.
 * Paths in text are target paths (`/opt/epics/...`) unless they carry a
