@@ -3,26 +3,39 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Create an instance env file with the next free IOC_INSTANCE_INDEX. Installed
-# into every IOC directory built by epics-ioc-systemd.
+# Create an instance registry entry with the next free console slot.
+# Installed by epics-ioc-scripts; the entry goes into
+# /etc/epics/instances/<name>.env (fleet layer).
 
 set -e
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-[ -r "$HERE/ioc-env" ] || { echo "$0: missing $HERE/ioc-env" >&2; exit 1; }
-. "$HERE/ioc-env"
-. "$HERE/ioc-ports.sh"
+[ -r "$HERE/../libexec/epics-ioc/epics-ioc-env" ] || { echo "$0: missing epics-ioc-env" >&2; exit 1; }
+. "$HERE/../libexec/epics-ioc/epics-ioc-env"
+. "$HERE/../libexec/epics-ioc/ioc-ports.sh"
 
-[ -n "$1" ] || { echo "usage: $0 <instance-name>" >&2; exit 2; }
+if [ -z "$1" ] || case "$1" in *[!a-z0-9-]*) true ;; *) false ;; esac; then
+    echo "usage: $0 <instance-name>   (lowercase [a-z0-9-], host-global)" >&2
+    exit 2
+fi
 
 _name="$1"
-_target="$ENV_DIR/$_name.env"
+_target="$ENV_ROOT/$_name.env"
 [ -e "$_target" ] && { echo "$_target already exists" >&2; exit 1; }
 
 _index="$(ioc_ports_next)"
 cat > "$_target" <<EOF
+# Registry entry for IOC instance $_name (console port $(( PORT_BASE + _index * 10 ))).
+# Machine-specific overrides go to $MACHINE_ENV_ROOT/$_name.env (optional).
+
 IOC_INSTANCE_INDEX=$_index
-IOC_PREFIX=$_name:
-IOC_STATE=/var/lib/$PN/$_name
+IOC_STATE=/var/lib/epics-ioc/$_name
+
+# IOC_APP_DIR=/opt/epics/iocs/<application>   version-independent app dir
+# IOC_PATH=iocBoot/<ioc>                      below IOC_APP_DIR
+# IOC_APP_NAME=<binary>                       empty: run IOC_ST_CMD via shebang
+# IOC_PREFIX=<PV prefix>
 EOF
 echo "created $_target (IOC_INSTANCE_INDEX=$_index)"
+echo "next: fill in IOC_APP_DIR/IOC_PATH/IOC_APP_NAME, then
+  systemctl enable --now 'epics-ioc@$_name'"

@@ -1,0 +1,20 @@
+[Unit]
+Description=EPICS IOC instance %i
+# The instance name selects an entry in the instance registry
+# (/etc/epics/instances/%i.env), which points at the IOC application
+# directory and carries the instance identity (slot, PV prefix, state dir).
+# See the epics-ioc-scripts documentation.
+After=network.target
+# The one-shot procServ exits with the child's status, so this counter
+# circuit-breaks an IOC that keeps crashing.
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+ExecStart=@LIBEXECDIR@/epics-ioc/ioc-start.sh %i
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

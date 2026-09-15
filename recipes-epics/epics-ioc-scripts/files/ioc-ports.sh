@@ -3,10 +3,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Console-port slots for an EPICS IOC installed by epics-ioc-systemd, plus the
-# helper entry points around them.
+# Console-port slots for EPICS IOC instances managed by the epics-ioc@
+# template, plus the helper entry points around them.
 #
-# Every per-IOC value comes from the generated ioc-env file next to this
+# Every site-level value comes from the epics-ioc-env file next to this
 # script; this file contains only logic, so it can be read and tested without
 # a build.
 
@@ -52,9 +52,11 @@ ioc_ports_show() {
     }
 
 _ioc_ports_env_files() {
-    # Every IOC's instance env files: a console port collides across different
-    # IOCs just as it does within one, so the slot index is global.
-    for _f in "$ENV_ROOT"/*/*.env; do
+    # The instance registry spans two layers: the fleet-wide env files in the
+    # image and the optional machine-level overrides on the BOOT partition.
+    # A console port collides across layers just as it does within one, so
+    # both are scanned.
+    for _f in "$ENV_ROOT"/*.env "$MACHINE_ENV_ROOT"/*.env; do
         [ -e "$_f" ] || continue
         echo "$_f"
     done
