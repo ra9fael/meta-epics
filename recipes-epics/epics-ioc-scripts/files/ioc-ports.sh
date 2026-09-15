@@ -11,8 +11,8 @@
 # a build.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-[ -r "$HERE/ioc-env" ] || { echo "$0: missing $HERE/ioc-env" >&2; exit 1; }
-. "$HERE/ioc-env"
+[ -r "$HERE/epics-ioc-env" ] || { echo "$0: missing $HERE/epics-ioc-env" >&2; exit 1; }
+. "$HERE/epics-ioc-env"
 
 IOC_PORT_STRIDE=10
 IOC_INSTANCE_MAX=99

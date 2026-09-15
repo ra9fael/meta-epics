@@ -81,7 +81,9 @@ if [ -r ./ioc-start.pre ]; then
     . ./ioc-start.pre
 fi
 
-$IOC_START_PRE
+# eval, not plain expansion: a quoted hook body must see the values the
+# overrides left behind, and a bare function call must still work.
+[ -n "$IOC_START_PRE" ] && eval "$IOC_START_PRE"
 
 # The executable either comes from bin/<target-arch> or the st.cmd is run
 # directly through its shebang.
