@@ -69,7 +69,7 @@ Variables the classes read:
 | `IOC_APP_NAME`              | `""`                                 | Executable under `bin/<target-arch>/`; empty to run `st.cmd` through its shebang. |
 | `IOC_PATH`                  | `""`                                 | Directory with `st.cmd`, e.g. `iocBoot/iocmy`. |
 | `IOC_ST_CMD`                | `"st.cmd"`                           | Name of the startup script. |
-| `PROCSERV_ARGS`             | `"-A"`                               | Extra procServ arguments; `-A` allows remote consoles. |
+| `PROCSERV_ARGS`             | `"-A --oneshot"`                     | Extra procServ arguments; `-A` allows remote consoles, `--oneshot` hands restart policy to systemd. |
 | `EPICS_IOC_MULTI_INSTANCE`  | `"0"`                                | `1` ships a systemd template unit instead of a plain one. |
 | `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | Instance env files to install, as source paths. |
 | `EPICS_IOC_START_PRE`       | `""`                                 | Shell statement run by `ioc-start.sh` before procServ starts. |
@@ -159,9 +159,12 @@ telnet <board-ip> 21000                     # console of ioc0
 telnet <board-ip> 21010                     # console of ioc1
 ```
 
-The console is an iocsh prompt for the running IOC (`help`, `dbpr`, ...); the
-IOC is a child of procServ, so killing it from the console makes procServ
-restart it.
+The console is an iocsh prompt for the running IOC (`help`, `dbpr`, ...).
+procServ runs one-shot: when the IOC exits -- crash or `^X` from the console
+-- procServ exits with the child's status and systemd restarts the service
+after 5 s. Five failures within five minutes trip the unit's start limit and
+the circuit breaker stops the restart loop (`systemctl reset-failed` clears
+it).
 
 Records are reached over CA with no client-side configuration, because every
 instance on the host receives the broadcast search and replies with its own

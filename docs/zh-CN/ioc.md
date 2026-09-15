@@ -68,7 +68,7 @@ class 会读取的变量：
 | `IOC_APP_NAME`              | `""`                                 | `bin/<目标体系结构>/` 下的可执行文件；留空则通过 st.cmd 的 shebang 运行。 |
 | `IOC_PATH`                  | `""`                                 | `st.cmd` 所在目录，如 `iocBoot/iocmy`。 |
 | `IOC_ST_CMD`                | `"st.cmd"`                           | 启动脚本名。 |
-| `PROCSERV_ARGS`             | `"-A"`                               | procServ 额外参数；`-A` 允许远程控制台。 |
+| `PROCSERV_ARGS`             | `"-A --oneshot"`                     | procServ 额外参数；`-A` 允许远程控制台，`--oneshot` 把重启策略交给 systemd。 |
 | `EPICS_IOC_MULTI_INSTANCE`  | `"0"`                                | 设为 `1` 安装 systemd 模板单元而不是普通单元。 |
 | `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | 要安装的实例 env 文件（源码路径）。 |
 | `EPICS_IOC_START_PRE`       | `""`                                 | procServ 启动前由 `ioc-start.sh` 执行的 shell 语句。 |
@@ -153,8 +153,10 @@ telnet <板卡IP> 21000                        # ioc0 的控制台
 telnet <板卡IP> 21010                        # ioc1 的控制台
 ```
 
-控制台就是运行中 IOC 的 iocsh 提示符（`help`、`dbpr`……）；IOC 是 procServ 的
-子进程，所以在控制台里杀掉它会让 procServ 重新拉起。
+控制台就是运行中 IOC 的 iocsh 提示符（`help`、`dbpr`……）。procServ 以
+one-shot 方式运行：IOC 退出——无论崩溃还是控制台里 `^X`——procServ 都会带着
+子进程的退出码退出，systemd 在 5 秒后重启服务；五分钟内失败五次触发单元的
+start limit，熔断停止重启循环（`systemctl reset-failed` 清除）。
 
 记录通过 CA 访问，客户端无需任何配置，因为主机上每个实例都会收到广播搜索并以
 自己的端口应答：

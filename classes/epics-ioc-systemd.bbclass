@@ -41,8 +41,13 @@ EPICS_IOC_RUN_DIR ?= "/run/epics/${PN}"
 # --- procServ / IOC --------------------------------------------------------
 
 # -A lets the console be reached from other hosts (compile-time support comes
-# from the procserv recipe's "remote" PACKAGECONFIG).
-PROCSERV_ARGS ?= "-A"
+# from the procserv recipe's "remote" PACKAGECONFIG). --oneshot makes procServ
+# exit when the child does, carrying its exit status: restart policy then
+# belongs to systemd alone (Restart=always, StartLimit*), and a crashing IOC
+# is counted and eventually circuit-broken instead of being restarted
+# silently forever. (--noautorestart would NOT work for this: procServ then
+# stays alive without a child and systemd never sees a failure.)
+PROCSERV_ARGS ?= "-A --oneshot"
 
 # Name of the executable under bin/<target-arch>/. Empty to execute the st.cmd
 # directly through its shebang.
@@ -96,6 +101,7 @@ EPICS_TARGET_ARCH="${EPICS_TARGET_ARCH}"
 IOC_APP_NAME="${IOC_APP_NAME}"
 IOC_ST_CMD="${IOC_ST_CMD}"
 IOC_START_PRE='${EPICS_IOC_START_PRE}'
+PROCSERV_ARGS='${PROCSERV_ARGS}'
 EOF
 
     # An st.cmd executed directly through its shebang must be executable.
@@ -128,12 +134,16 @@ EOF
 [Unit]
 Description=%p IOC instance %i
 After=network.target
+# The one-shot procServ exits with the child's status, so this counter
+# circuit-breaks an IOC that keeps crashing.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 EnvironmentFile=-${EPICS_IOC_ENV_DIR}/%i.env
 ExecStart=${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}/ioc-start.sh %i
-Restart=on-failure
+Restart=always
 RestartSec=5s
 
 [Install]
@@ -144,11 +154,15 @@ EOF
 [Unit]
 Description=${PN} IOC
 After=network.target
+# The one-shot procServ exits with the child's status, so this counter
+# circuit-breaks an IOC that keeps crashing.
+StartLimitIntervalSec=300
+StartLimitBurst=5
 
 [Service]
 Type=simple
 ExecStart=${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}/ioc-start.sh
-Restart=on-failure
+Restart=always
 RestartSec=5s
 
 [Install]
