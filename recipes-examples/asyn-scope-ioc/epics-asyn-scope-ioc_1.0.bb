@@ -34,9 +34,8 @@ EPICS_MODULES = "asyn"
 IOC_APP_NAME = "testAsynPortDriver"
 IOC_PATH = "iocBoot/ioctestAsynPortDriver"
 
-# Two instances in the host-wide registry; scope01 auto-enables with the
-# preset, scope02 is installed but stays off until the operator enables it.
-EPICS_IOC_INSTANCES = "scope01"
+# Two instances in the host-wide registry; both are installed but stay off
+# until the operator enables them (dev-board example IOC, not a fleet unit).
 EPICS_IOC_INSTANCE_ENVS = "${WORKDIR}/instances/scope01.env ${WORKDIR}/instances/scope02.env"
 
 do_configure:append() {

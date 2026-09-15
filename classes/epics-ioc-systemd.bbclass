@@ -22,24 +22,23 @@ inherit epics-ioc
 # The runtime package owns the unit file and the scripts.
 DEPENDS += "epics-ioc-scripts"
 
+# Registry root. Must match epics-ioc-scripts' EPICS_IOC_ENV_ROOT; redefined
+# here because recipe variables do not cross package boundaries.
+EPICS_IOC_ENV_ROOT ?= "/etc/epics/instances"
+
 # Registry entries to install, as source paths; the basename must be the
 # host-global instance name.
 EPICS_IOC_INSTANCE_ENVS ?= ""
-# Instances of this package that systemd should enable (via the preset),
-# e.g. EPICS_IOC_INSTANCES = "blm". Every name must have a matching
-# EPICS_IOC_INSTANCE_ENVS entry.
+# Instances of this package that systemd-preset-all should enable at image
+# build time, e.g. EPICS_IOC_INSTANCES = "blm". Every name must have a
+# matching EPICS_IOC_INSTANCE_ENVS entry.
 EPICS_IOC_INSTANCES ?= ""
+# enable (write a preset line) or disable (install only).
+EPICS_IOC_AUTO_ENABLE ?= "disable"
 
 # The registry directory is shared by every IOC package; the runtime package
 # owns it.
 FILES:${PN} += "${EPICS_IOC_ENV_ROOT}"
-
-inherit systemd
-
-# Operators enable instances explicitly; a recipe opts in per instance
-# through EPICS_IOC_INSTANCES.
-SYSTEMD_AUTO_ENABLE:${PN} = "disable"
-SYSTEMD_SERVICE:${PN} = "${@' '.join('epics-ioc@%s.service' % i for i in (d.getVar('EPICS_IOC_INSTANCES') or '').split())}"
 
 do_install:append() {
     env_root=${D}${EPICS_IOC_ENV_ROOT}
@@ -47,4 +46,19 @@ do_install:append() {
     for instance in ${EPICS_IOC_INSTANCE_ENVS}; do
         install -m 0644 "$instance" "${env_root}/$(basename "$instance")"
     done
+
+    # The unit file lives in the runtime package, so enabling an instance
+    # goes through a systemd preset (systemd-preset-all resolves it during
+    # image creation) rather than SYSTEMD_SERVICE -- that check only finds
+    # units packaged by the same recipe.
+    if [ -n "${EPICS_IOC_INSTANCES}" ] && [ "${EPICS_IOC_AUTO_ENABLE}" = "enable" ]; then
+        install -d ${D}${nonarch_base_libdir}/systemd/system-preset
+        preset=${D}${nonarch_base_libdir}/systemd/system-preset/98-${BPN}.preset
+        : > $preset
+        for instance in ${EPICS_IOC_INSTANCES}; do
+            echo "enable epics-ioc@$instance.service" >> $preset
+        done
+    fi
 }
+
+FILES:${PN} += "${nonarch_base_libdir}/systemd/system-preset"

@@ -59,4 +59,4 @@ FILES:${PN} = "${libexecdir}/epics-ioc/ \
                ${EPICS_IOC_ENV_ROOT} \
 "
 
-RDEPENDS:${PN} = "procServ"
+RDEPENDS:${PN} = "procserv"

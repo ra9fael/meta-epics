@@ -15,6 +15,14 @@ EPICS_INSTALL_BASE = "${EPICS_PREFIX}/iocs"
 # An IOC has no include/, cfg/ or templates/ to export.
 EPICS_INSTALL_SUBDIRS ?= "bin lib db dbd iocBoot"
 
+# Build-time pointers into the installed tree: the application binary under
+# bin/<target-arch>/ (empty to run the st.cmd through its shebang), the
+# iocBoot directory holding st.cmd, and the st.cmd file name. The instance
+# registry entries (epics-ioc-systemd) repeat them as runtime data.
+IOC_APP_NAME ?= ""
+IOC_PATH ?= ""
+IOC_ST_CMD ?= "st.cmd"
+
 # Absolute runtime library directories of the support modules this IOC links,
 # space separated. Derived from EPICS_MODULES (one entry per module); set it
 # explicitly only to add directories EPICS_MODULES does not cover. They are
