@@ -28,11 +28,16 @@ EPICS_MODULE_NAME = "asyn-scope-ioc"
 # asyn library directory.
 EPICS_MODULES = "asyn"
 
+# IOC_APP_NAME and IOC_PATH are build-time values (used by epics-ioc to
+# install the iocBoot tree); the registry entries below repeat them as
+# runtime data.
 IOC_APP_NAME = "testAsynPortDriver"
 IOC_PATH = "iocBoot/ioctestAsynPortDriver"
 
-EPICS_IOC_MULTI_INSTANCE = "1"
-EPICS_IOC_INSTANCE_ENVS = "${WORKDIR}/instances/ioc0.env ${WORKDIR}/instances/ioc1.env"
+# Two instances in the host-wide registry; scope01 auto-enables with the
+# preset, scope02 is installed but stays off until the operator enables it.
+EPICS_IOC_INSTANCES = "scope01"
+EPICS_IOC_INSTANCE_ENVS = "${WORKDIR}/instances/scope01.env ${WORKDIR}/instances/scope02.env"
 
 do_configure:append() {
     # Keep only what this IOC builds. Everything else -- the asyn library

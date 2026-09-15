@@ -31,6 +31,7 @@ SYSTEMD_AUTO_ENABLE:${PN} = "disable"
 
 do_install() {
     install -d ${D}${libexecdir}/epics-ioc ${D}${sbindir} ${D}${systemd_system_unitdir}
+    install -d ${D}${EPICS_IOC_ENV_ROOT}
 
     # Static runtime data. EPICS_TARGET_ARCH is baked in: this package is
     # built for the target.
@@ -55,6 +56,7 @@ EOF
 FILES:${PN} = "${libexecdir}/epics-ioc/ \
                ${sbindir}/ioc-instance-add \
                ${systemd_system_unitdir}/epics-ioc@.service \
+               ${EPICS_IOC_ENV_ROOT} \
 "
 
 RDEPENDS:${PN} = "procServ"

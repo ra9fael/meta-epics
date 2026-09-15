@@ -1,174 +1,50 @@
-# Run an EPICS IOC under procServ, supervised by systemd, with per-instance
-# console ports.
+# Register IOC instances with the generic epics-ioc@.service runtime.
 #
-# A single-instance IOC ships <PN>.service. A multi-instance IOC ships the
-# systemd template <PN>@.service: `systemctl enable --now '<PN>@ioc1'` starts one
-# IOC, and the instance env file /etc/epics/<PN>/ioc1.env selects its console
-# port, PV prefix and state directory. See docs/port-allocation.md.
+# The deployment unit is a host-global instance name, not an application
+# package: one template unit (shipped by epics-ioc-scripts) serves every
+# IOC, and an instance is a named registry entry that points at the packaged
+# application and carries the instance identity. Two registry layers exist:
 #
-# Port management is layered. The procServ console has no discovery mechanism,
-# so it is the one port that is statically allocated: a global slot index
-# (IOC_INSTANCE_INDEX, shared by every IOC on the target) picks a 10-port stride
-# out of the site range, and the console sits at its first port. The CA and PVA
-# service ports are not managed here at all: EPICS natively gives the first IOC
-# the default ports and lets every further one fall back to a dynamic port that
-# beacons advertise. An instance that must be reachable on a fixed port pins
-# CA_PORT/PVA_PORT in its env file.
+#   /etc/epics/instances/<name>.env   fleet layer, shipped by IOC packages
+#   /boot/iocs/<name>.env             machine layer, optional, overrides
 #
-# The runtime scripts are real files shipped by the epics-ioc-scripts recipe
-# and copied into every IOC directory, so each IOC stays self-contained. The
-# only generated piece is ioc-env, a file of plain KEY=value assignments
-# carrying the per-IOC values -- keeping the fragile BitBake-heredoc surface
-# down to data.
+# Each entry sets at least IOC_APP_DIR, IOC_PATH and IOC_APP_NAME (where the
+# application lives) plus the identity: IOC_INSTANCE_INDEX (the global
+# console-slot number, console = PORT_BASE + 10 * index), IOC_PREFIX and
+# IOC_STATE; CA_PORT/PVA_PORT/PS_PORT/APP_PORT_1/2 are optional pins.
+# See docs/port-allocation.md.
+#
+# This class only registers the packaged instances; the unit file, scripts
+# and procServ all belong to the epics-ioc-scripts runtime package.
 
 inherit epics-ioc
 
-# procServ is exec'd at run time only; nothing is linked against it. The
-# runtime scripts are copied from the epics-ioc-scripts sysroot.
+# The runtime package owns the unit file and the scripts.
 DEPENDS += "epics-ioc-scripts"
-RDEPENDS:${PN} += "procserv"
 
-# --- console ports ---------------------------------------------------------
-
-EPICS_IOC_PORT_BASE ?= "21000"
-# Instance env files live here; the audit and --next helpers scan every IOC's
-# directory below it, because a console-port collision is possible across
-# different IOCs, not only within one.
-EPICS_IOC_ENV_ROOT ?= "${sysconfdir}/epics"
-# procServ -I writes the running server's PID and endpoints here (tmpfs).
-EPICS_IOC_RUN_DIR ?= "/run/epics/${PN}"
-
-# --- procServ / IOC --------------------------------------------------------
-
-# -A lets the console be reached from other hosts (compile-time support comes
-# from the procserv recipe's "remote" PACKAGECONFIG). --oneshot makes procServ
-# exit when the child does, carrying its exit status: restart policy then
-# belongs to systemd alone (Restart=always, StartLimit*), and a crashing IOC
-# is counted and eventually circuit-broken instead of being restarted
-# silently forever. (--noautorestart would NOT work for this: procServ then
-# stays alive without a child and systemd never sees a failure.)
-PROCSERV_ARGS ?= "-A --oneshot"
-
-# Name of the executable under bin/<target-arch>/. Empty to execute the st.cmd
-# directly through its shebang.
-IOC_APP_NAME ?= ""
-# Directory below the install root that holds st.cmd, e.g.
-# iocBoot/ioctestAsynPortDriver.
-IOC_PATH ?= ""
-IOC_ST_CMD ?= "st.cmd"
-
-# Shell statement run after the ports are resolved and before procServ starts.
-# Functions it calls can be defined by a sibling <IOC_PATH>/ioc-start.pre.
-EPICS_IOC_START_PRE ?= ""
-
-EPICS_IOC_MULTI_INSTANCE ?= "0"
-EPICS_IOC_ENV_DIR ?= "${sysconfdir}/epics/${PN}"
-# Additional instance env files to install, as source paths.
+# Registry entries to install, as source paths; the basename must be the
+# host-global instance name.
 EPICS_IOC_INSTANCE_ENVS ?= ""
+# Instances of this package that systemd should enable (via the preset),
+# e.g. EPICS_IOC_INSTANCES = "blm". Every name must have a matching
+# EPICS_IOC_INSTANCE_ENVS entry.
+EPICS_IOC_INSTANCES ?= ""
+
+# The registry directory is shared by every IOC package; the runtime package
+# owns it.
+FILES:${PN} += "${EPICS_IOC_ENV_ROOT}"
 
 inherit systemd
 
-# The operator enables an IOC explicitly; installing it must not start it.
+# Operators enable instances explicitly; a recipe opts in per instance
+# through EPICS_IOC_INSTANCES.
 SYSTEMD_AUTO_ENABLE:${PN} = "disable"
-
-SYSTEMD_SERVICE:${PN} = "${PN}${@bb.utils.contains('EPICS_IOC_MULTI_INSTANCE', '1', '@.service', '.service', d)}"
+SYSTEMD_SERVICE:${PN} = "${@' '.join('epics-ioc@%s.service' % i for i in (d.getVar('EPICS_IOC_INSTANCES') or '').split())}"
 
 do_install:append() {
-    install_dir=${D}${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}-${EPICS_MODULE_VERSION}
-    unit_dir=${D}${systemd_system_unitdir}
-    env_dir=${D}${EPICS_IOC_ENV_DIR}
-    script_dir=${RECIPE_SYSROOT}${datadir}/epics/ioc
-
-    install -d ${unit_dir} ${env_dir}
-
-    # The runtime scripts ship as real files in epics-ioc-scripts. Copy them
-    # into the IOC directory so each IOC stays self-contained, and generate the
-    # per-IOC values as a file of plain assignments: data only, no logic, so
-    # the heredoc carries no shell metacharacters worth worrying about.
-    install -m 0755 $script_dir/ioc-start.sh \
-                    $script_dir/ioc-ports.sh \
-                    $script_dir/ioc-instance-add ${install_dir}/
-
-    cat > ${install_dir}/ioc-env <<EOF
-# Generated by epics-ioc-systemd.bbclass -- per-IOC values for the scripts.
-PN="${PN}"
-ENV_DIR="${EPICS_IOC_ENV_DIR}"
-ENV_ROOT="${EPICS_IOC_ENV_ROOT}"
-RUN_DIR="${EPICS_IOC_RUN_DIR}"
-PORT_BASE="${EPICS_IOC_PORT_BASE}"
-IOC_PATH="${IOC_PATH}"
-EPICS_TARGET_ARCH="${EPICS_TARGET_ARCH}"
-IOC_APP_NAME="${IOC_APP_NAME}"
-IOC_ST_CMD="${IOC_ST_CMD}"
-IOC_START_PRE='${EPICS_IOC_START_PRE}'
-PROCSERV_ARGS='${PROCSERV_ARGS}'
-EOF
-
-    # An st.cmd executed directly through its shebang must be executable.
-    [ -f "${install_dir}/${IOC_PATH}/${IOC_ST_CMD}" ] && \
-        chmod 0755 ${install_dir}/${IOC_PATH}/${IOC_ST_CMD}
-
-    cat > ${env_dir}/example.env <<EOF
-# Per-instance configuration for ${PN}. Copy to <name>.env, adjust, then
-#   systemctl enable --now '${PN}@<name>'
-# IOC_INSTANCE_INDEX is unique across every IOC on this target: it picks the
-# console port ${EPICS_IOC_PORT_BASE} + 10*index. See docs/port-allocation.md.
-IOC_INSTANCE_INDEX=0
-IOC_PREFIX=example:
-IOC_STATE=/var/lib/${PN}/example
-
-# CA_PORT=...       # pin the CA server port (recommended: base + 10*index + 3);
-# PVA_PORT=...      # pin the PVA server port (recommended: base + 10*index + 4);
-#                   # leave both unset to let EPICS assign them dynamically
-# PS_PORT=...       # override the procServ console port
-# APP_PORT_1=...    # override the primary application port
-# APP_PORT_2=...    # override the secondary application port
-EOF
-
+    env_root=${D}${EPICS_IOC_ENV_ROOT}
+    install -d ${env_root}
     for instance in ${EPICS_IOC_INSTANCE_ENVS}; do
-        install -m 0644 "$instance" "${env_dir}/$(basename "$instance")"
+        install -m 0644 "$instance" "${env_root}/$(basename "$instance")"
     done
-
-    if [ "${EPICS_IOC_MULTI_INSTANCE}" = "1" ]; then
-        cat > ${unit_dir}/${PN}@.service <<EOF
-[Unit]
-Description=%p IOC instance %i
-After=network.target
-# The one-shot procServ exits with the child's status, so this counter
-# circuit-breaks an IOC that keeps crashing.
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
-[Service]
-Type=simple
-EnvironmentFile=-${EPICS_IOC_ENV_DIR}/%i.env
-ExecStart=${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}/ioc-start.sh %i
-Restart=always
-RestartSec=5s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    else
-        cat > ${unit_dir}/${PN}.service <<EOF
-[Unit]
-Description=${PN} IOC
-After=network.target
-# The one-shot procServ exits with the child's status, so this counter
-# circuit-breaks an IOC that keeps crashing.
-StartLimitIntervalSec=300
-StartLimitBurst=5
-
-[Service]
-Type=simple
-ExecStart=${EPICS_INSTALL_BASE}/${EPICS_MODULE_NAME}/ioc-start.sh
-Restart=always
-RestartSec=5s
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    fi
 }
-
-FILES:${PN} += "${EPICS_IOC_ENV_DIR}"
