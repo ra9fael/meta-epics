@@ -8,11 +8,15 @@ IOC 应用是一棵 `makeBaseApp` 风格的目录树：一个应用目录，含 
 IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及带 `st.cmd` 的
 `iocBoot/<ioc>`。
 
-两个 class 负责构建和运行它：
+三个部分配合工作：
 
 * `epics-ioc`（继承 `epics-module`）构建并打包应用。
-* `epics-ioc-systemd`（继承 `epics-ioc`）加上 procServ 和 systemd 单元，并为每个
-  实例分配自己的控制台端口。
+* `epics-ioc-systemd`（继承 `epics-ioc`）注册实例：把每个实例的 env 文件装进
+  全机实例注册表（`/etc/epics/instances/<name>.env`），并可通过 systemd preset
+  启用实例。
+* `epics-ioc-scripts` 是所有 IOC 共用的运行时：一个通用 systemd 模板
+  （`epics-ioc@.service`）、`ioc-start.sh` 调度器和端口槽位辅助脚本。实例只由
+  它的全机唯一名字标识。
 
 `recipes-examples/asyn-scope-ioc/` 里的 `epics-asyn-scope-ioc` 是完整示例：它直接
 从 asyn 源码构建 asyn 自带的模拟示波器测试 IOC（`testAsynPortDriver`）。阅读本文
@@ -21,18 +25,17 @@ IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及�
 ## 安装布局
 
 ```text
+/usr/lib/systemd/system/epics-ioc@.service     # 全部 IOC 共用一个通用模板
+/usr/libexec/epics-ioc/{ioc-start.sh,ioc-ports.sh,epics-ioc-env}
+/usr/sbin/ioc-instance-add
+/etc/epics/instances/{scope01.env,scope02.env} # 实例注册表（队级层）
 /opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /opt/epics/iocs/asyn-scope-ioc-1.0/
 ├── bin/linux-aarch64/testAsynPortDriver
 ├── lib/linux-aarch64/libtestAsynPortDriverSupport.so
 ├── db/testAsynPortDriver.db
 ├── dbd/testAsynPortDriver.dbd
-├── iocBoot/ioctestAsynPortDriver/{st.cmd,envPaths}
-├── ioc-start.sh
-├── ioc-ports.sh
-└── ioc-instance-add
-/etc/epics/asyn-scope-ioc/{example.env,ioc0.env,ioc1.env}
-/usr/lib/systemd/system/epics-asyn-scope-ioc@.service
+└── iocBoot/ioctestAsynPortDriver/{st.cmd,envPaths}
 ```
 
 应用安装在 `${EPICS_PREFIX}/iocs`（`EPICS_INSTALL_BASE`），与支持模块安装在
@@ -68,11 +71,9 @@ class 会读取的变量：
 | `IOC_APP_NAME`              | `""`                                 | `bin/<目标体系结构>/` 下的可执行文件；留空则通过 st.cmd 的 shebang 运行。 |
 | `IOC_PATH`                  | `""`                                 | `st.cmd` 所在目录，如 `iocBoot/iocmy`。 |
 | `IOC_ST_CMD`                | `"st.cmd"`                           | 启动脚本名。 |
-| `PROCSERV_ARGS`             | `"-A --oneshot"`                     | procServ 额外参数；`-A` 允许远程控制台，`--oneshot` 把重启策略交给 systemd。 |
-| `EPICS_IOC_MULTI_INSTANCE`  | `"0"`                                | 设为 `1` 安装 systemd 模板单元而不是普通单元。 |
-| `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | 要安装的实例 env 文件（源码路径）。 |
-| `EPICS_IOC_START_PRE`       | `""`                                 | procServ 启动前由 `ioc-start.sh` 执行的 shell 语句。 |
-| `EPICS_IOC_PORT_BASE`       | `"21000"`                            | 第一个控制台端口；见 [port-allocation.md](port-allocation.md)。 |
+| `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | 要安装的注册表条目（源码路径，basename = 实例名）。 |
+| `EPICS_IOC_INSTANCES`       | `""`                                 | 镜像构建时由 systemd-preset-all 启用的实例。 |
+| `EPICS_IOC_AUTO_ENABLE`     | `"disable"`                          | `enable` 时为 `EPICS_IOC_INSTANCES` 写 preset 行。 |
 
 IOC 链接到的每个模块都必须写进 `RDEPENDS`：shlibs 扫描看不到
 `${EPICS_PREFIX}` 下的内容，推不出来。
@@ -82,75 +83,80 @@ IOC 链接到的每个模块都必须写进 `RDEPENDS`：shlibs 扫描看不到
 
 ## 实例
 
-每个实例都有自己的控制台端口；CA/PVA 服务端口与主机 EPICS 默认共享或动态分配。
-槽位方案、客户端配置以及可选的端口固定见
-[port-allocation.md](port-allocation.md)。
+一个实例就是一个全机唯一的名字（`scope01`、`blm`……）加一条注册表条目——一个
+纯 `KEY=value` 的 env 文件。注册表分两层，后者覆盖前者：
 
-实例由单元的实例名选择，实例名同时就是它的 env 文件名：
+* `/etc/epics/instances/<name>.env` —— 队级层，由 IOC 包随镜像安装；
+* `/boot/iocs/<name>.env` —— 机器级层，位于可写的 BOOT 分区，用于每台机器的
+  差异化覆盖；多数机器上不存在。
 
-```bash
-cp /etc/epics/asyn-scope-ioc/example.env /etc/epics/asyn-scope-ioc/ioc1.env
-systemctl enable --now 'epics-asyn-scope-ioc@ioc1'
-```
-
-env 文件把实例信息交给启动脚本：
+注册表条目指出应用位置并携带实例身份：
 
 ```sh
-IOC_INSTANCE_INDEX=1        # 控制台 21010；对 target 上所有 IOC 全局唯一
-IOC_PREFIX=ioc1:            # 记录名前缀，传给 IOC
-IOC_STATE=/var/lib/asyn-scope-ioc/ioc1
+IOC_APP_DIR=/opt/epics/iocs/asyn-scope-ioc   # 应用所在目录
+IOC_PATH=iocBoot/ioctestAsynPortDriver       # 相对 IOC_APP_DIR
+IOC_APP_NAME=testAsynPortDriver              # 留空：通过 shebang 运行 st.cmd
+IOC_INSTANCE_INDEX=1                         # 控制台 21010；对 target 上所有 IOC 全局唯一
+IOC_PREFIX=ioc1:                             # 记录名前缀
+IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 
-#CA_PORT=21013              # 可选：固定 CA 服务端口（否则动态）
-#PVA_PORT=21014             # 可选：固定 PVA 服务端口（否则动态）
-#PS_PORT=...                # 可选：覆盖控制台端口
-#APP_PORT_1=...             # 可选：IOC 自己开 socket 时使用
+#CA_PORT=21013                              # 可选：固定 CA 服务端口（否则动态）
+#PVA_PORT=21014                             # 可选：固定 PVA 服务端口（否则动态）
+#PS_PORT=...                                # 可选：覆盖控制台端口
+#APP_PORT_1=...                             # 可选：IOC 自己开 socket 时使用
 #APP_PORT_2=...
 ```
 
-`IOC_INSTANCE_INDEX` 是唯一必须唯一的编号，而且是对 target 上所有 IOC 全局唯一。
-`ioc-instance-add <name>` 用最小空闲槽位生成 env 文件，
-`ioc-ports.sh --show [实例名]` 打印端口（运行中的实例还会列出实际 endpoint）：
+实例名是小写 `[a-z0-9-]` 且全机唯一。`IOC_INSTANCE_INDEX` 是唯一必须唯一的
+编号，而且是对 target 上所有 IOC 全局唯一。`ioc-instance-add <name>` 用最小
+空闲槽位生成注册表条目，`ioc-ports.sh --show [实例名]` 打印端口（运行中的
+实例还会列出实际 endpoint）：
 
 ```sh
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --show ioc1
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --next
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --audit
+ioc-instance-add myscope
+/usr/libexec/epics-ioc/ioc-ports.sh --show scope01
+/usr/libexec/epics-ioc/ioc-ports.sh --next
+/usr/libexec/epics-ioc/ioc-ports.sh --audit
 ```
 
-## 生成的启动脚本
+## 启动调度器
 
-systemd 做不了端口算术，所以 `ExecStart` 指向生成的脚本而不是 procServ 本身。
-`ioc-start.sh <实例名>` 依次：
+systemd 做不了端口算术和注册表查找，所以 `ExecStart` 指向一个脚本而不是
+procServ 本身。`ioc-start.sh <实例名>` 依次：
 
-1. source `/etc/epics/<PN>/<实例名>.env`；
-2. 推导控制口和应用口（`ioc-ports.sh`）；
-3. env 固定了 `CA_PORT`/`PVA_PORT` 时，导出
+1. source 站点级值（`epics-ioc-env`：注册表根、`PORT_BASE`、`RUN_DIR`、
+   `PROCSERV_ARGS`）；
+2. 加载 `/etc/epics/instances/<实例名>.env`，随后加载可选的
+   `/boot/iocs/<实例名>.env` 机器级覆盖；
+3. 检查 `$IOC_APP_DIR/$IOC_PATH` 存在；
+4. 推导控制口和应用口（`ioc-ports.sh`）；
+5. env 固定了 `CA_PORT`/`PVA_PORT` 时，导出
    `EPICS_CA_SERVER_PORT`/`EPICS_PVAS_SERVER_PORT`（服务端启动时读取）；
-4. 为 `IOC_PREFIX`、`IOC_STATE` 取默认值并创建状态目录；
-5. `cd` 进 `IOC_PATH`，source 可选的 `ioc-start.pre` 钩子；
-6. 执行 `EPICS_IOC_START_PRE`，然后
-   `exec procServ -f -L - -I <info文件> -P "$PS_PORT" ...`。
+6. 为 `IOC_PREFIX`、`IOC_STATE` 取默认值并创建状态目录；
+7. `cd` 进 `$IOC_APP_DIR/$IOC_PATH`，source 可选的 `ioc-start.pre` 钩子并
+   执行 `$IOC_START_PRE`；
+8. `exec procServ -f -L - --name=<实例名> -I <info文件> -P "$PS_PORT" ...`。
 
 `IOC_PREFIX` 和 `IOC_STATE` 会被 export，而 iocsh 从进程环境读取 `.cmd` 宏，因此
-`st.cmd` 里可以直接用 `$(IOC_PREFIX)`、`$(IOC_STATE)` 或任何实例设置。`/run/epics/<PN>/`
+`st.cmd` 里可以直接用 `$(IOC_PREFIX)`、`$(IOC_STATE)` 或任何实例设置。`/run/epics/`
 下的 `-I` info 文件记录运行中服务器的 PID 和 endpoint；`ioc-ports.sh --show <实例名>`
 会读取它。
 
-钩子文件 `<iocdir>/<IOC_PATH>/ioc-start.pre` 会被 source，所以可以在其中定义
-`EPICS_IOC_START_PRE` 引用的函数——例如在 `$APP_PORT_1` 上起一个外部设备模拟器。
+钩子文件 `<IOC_APP_DIR>/<IOC_PATH>/ioc-start.pre` 会被 source，所以可以在其中定义
+`IOC_START_PRE` 引用的函数——例如在 `$APP_PORT_1` 上起一个外部设备模拟器。
 它是服务 cgroup 里的兄弟进程，systemd 停服务时会连同它一起停掉。
 
 ## target 上的操作
 
 ```bash
-systemctl is-enabled 'epics-asyn-scope-ioc@ioc0'   # disabled：已安装，未启用
-systemctl enable --now 'epics-asyn-scope-ioc@ioc0'
-systemctl enable --now 'epics-asyn-scope-ioc@ioc1'
-ss -ltnp | grep -E '2100[01]|2101[01]'      # 控制台 21000 / 21010
-cat /run/epics/asyn-scope-ioc/ioc1.info     # 运行中 IOC 的 PID 与 endpoint
+systemctl is-enabled 'epics-ioc@scope01'      # disabled：已安装，未启用
+systemctl enable --now 'epics-ioc@scope01'
+systemctl enable --now 'epics-ioc@scope02'
+ss -ltnp | grep -E '2100[01]|2101[01]'        # 控制台 21000 / 21010
+cat /run/epics/scope02.info                   # 运行中 IOC 的 PID 与 endpoint
 
-telnet <板卡IP> 21000                        # ioc0 的控制台
-telnet <板卡IP> 21010                        # ioc1 的控制台
+telnet <板卡IP> 21000                         # scope01 的控制台
+telnet <板卡IP> 21010                         # scope02 的控制台
 ```
 
 控制台就是运行中 IOC 的 iocsh 提示符（`help`、`dbpr`……）。procServ 以

@@ -8,11 +8,16 @@ An IOC application is a `makeBaseApp`-style tree: an application directory with
 a `configure/`, an `*App/src` that produces the IOC executable and its `.dbd`,
 an `*App/Db` with the records, and an `iocBoot/<ioc>` with `st.cmd`.
 
-Two classes build and run it:
+Three pieces cooperate:
 
 * `epics-ioc` (inherits `epics-module`) builds and packages the application.
-* `epics-ioc-systemd` (inherits `epics-ioc`) adds procServ and a systemd unit,
-  and gives each instance its own console port.
+* `epics-ioc-systemd` (inherits `epics-ioc`) registers instances: it installs
+  each instance's env file into the host-wide registry
+  (`/etc/epics/instances/<name>.env`) and can enable instances through a
+  systemd preset.
+* `epics-ioc-scripts` is the runtime every IOC shares: one generic systemd
+  template (`epics-ioc@.service`), the `ioc-start.sh` dispatcher and the
+  port-slot helpers. An instance is identified by its host-global name only.
 
 `epics-asyn-scope-ioc` in `recipes-examples/asyn-scope-ioc/` is a complete
 example: it builds asyn's own simulated oscilloscope test IOC
@@ -22,18 +27,17 @@ this document.
 ## Install layout
 
 ```text
+/usr/lib/systemd/system/epics-ioc@.service     # one generic template for every IOC
+/usr/libexec/epics-ioc/{ioc-start.sh,ioc-ports.sh,epics-ioc-env}
+/usr/sbin/ioc-instance-add
+/etc/epics/instances/{scope01.env,scope02.env} # the instance registry (fleet layer)
 /opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /opt/epics/iocs/asyn-scope-ioc-1.0/
 ├── bin/linux-aarch64/testAsynPortDriver
 ├── lib/linux-aarch64/libtestAsynPortDriverSupport.so
 ├── db/testAsynPortDriver.db
 ├── dbd/testAsynPortDriver.dbd
-├── iocBoot/ioctestAsynPortDriver/{st.cmd,envPaths}
-├── ioc-start.sh
-├── ioc-ports.sh
-└── ioc-instance-add
-/etc/epics/asyn-scope-ioc/{example.env,ioc0.env,ioc1.env}
-/usr/lib/systemd/system/epics-asyn-scope-ioc@.service
+└── iocBoot/ioctestAsynPortDriver/{st.cmd,envPaths}
 ```
 
 Applications install under `${EPICS_PREFIX}/iocs` (`EPICS_INSTALL_BASE`), the
@@ -56,6 +60,11 @@ EPICS_IOC_LIBDIRS = "${EPICS_PREFIX}/modules/asyn/lib/${EPICS_TARGET_ARCH} \
 
 IOC_APP_NAME = "myIoc"
 IOC_PATH     = "iocBoot/iocmy"
+
+# one instance named "myscope" (see below for the env file's keys)
+EPICS_IOC_INSTANCE_ENVS = "${WORKDIR}/myscope.env"
+EPICS_IOC_INSTANCES     = "myscope"
+EPICS_IOC_AUTO_ENABLE   = "enable"
 ```
 
 Variables the classes read:
@@ -66,14 +75,12 @@ Variables the classes read:
 | `EPICS_INSTALL_BASE`        | `${EPICS_PREFIX}/iocs`               | Install root. |
 | `EPICS_RELEASE_EXTRA`       | `""`                                 | `configure/RELEASE` entries; separate several with `\n`. |
 | `EPICS_IOC_LIBDIRS`         | `""`                                 | Runtime library directories of the linked modules; turned into rpath entries. |
-| `IOC_APP_NAME`              | `""`                                 | Executable under `bin/<target-arch>/`; empty to run `st.cmd` through its shebang. |
-| `IOC_PATH`                  | `""`                                 | Directory with `st.cmd`, e.g. `iocBoot/iocmy`. |
-| `IOC_ST_CMD`                | `"st.cmd"`                           | Name of the startup script. |
-| `PROCSERV_ARGS`             | `"-A --oneshot"`                     | Extra procServ arguments; `-A` allows remote consoles, `--oneshot` hands restart policy to systemd. |
-| `EPICS_IOC_MULTI_INSTANCE`  | `"0"`                                | `1` ships a systemd template unit instead of a plain one. |
-| `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | Instance env files to install, as source paths. |
-| `EPICS_IOC_START_PRE`       | `""`                                 | Shell statement run by `ioc-start.sh` before procServ starts. |
-| `EPICS_IOC_PORT_BASE`       | `"21000"`                            | First console port; see [port-allocation.md](port-allocation.md). |
+| `IOC_APP_NAME`              | `""`                                 | Executable under `bin/<target-arch>/`; empty to run `st.cmd` through its shebang. Build-time value; the registry entry repeats it. |
+| `IOC_PATH`                  | `""`                                 | Directory with `st.cmd`, e.g. `iocBoot/iocmy`. Build-time value. |
+| `IOC_ST_CMD`                | `"st.cmd"`                           | Name of the startup script. Build-time value. |
+| `EPICS_IOC_INSTANCE_ENVS`   | `""`                                 | Registry entries to install, as source paths (basename = instance name). |
+| `EPICS_IOC_INSTANCES`       | `""`                                 | Instances systemd-preset-all enables at image build time. |
+| `EPICS_IOC_AUTO_ENABLE`     | `"disable"`                          | `enable` writes the preset lines for `EPICS_IOC_INSTANCES`. |
 
 `RDEPENDS` must list every module whose library the IOC links; shlibs scanning
 does not see anything under `${EPICS_PREFIX}`, so it cannot work them out.
@@ -83,80 +90,84 @@ sysroot only applies at build time.
 
 ## Instances
 
-Every instance gets its own console port; the CA and PVA service ports are
-shared with the host's EPICS defaults or dynamically assigned. The slot scheme,
-the client configuration and the optional port pinning are in
-[port-allocation.md](port-allocation.md).
+An instance is a host-global name (`scope01`, `blm`, ...) with a registry
+entry -- a plain `KEY=value` env file. Two layers exist, later wins:
 
-An instance is selected by the unit instance name, which is also the name of
-its env file:
+* `/etc/epics/instances/<name>.env` -- the fleet layer, shipped in the image
+  by the IOC package;
+* `/boot/iocs/<name>.env` -- the machine layer on the writable BOOT
+  partition, for per-machine overrides; absent on most machines.
 
-```bash
-cp /etc/epics/asyn-scope-ioc/example.env /etc/epics/asyn-scope-ioc/ioc1.env
-systemctl enable --now 'epics-asyn-scope-ioc@ioc1'
-```
-
-The env file supplies the instance to the start script:
+The registry entry points at the application and carries the identity:
 
 ```sh
-IOC_INSTANCE_INDEX=1        # console 21010; global across every IOC on the target
-IOC_PREFIX=ioc1:            # record name prefix, passed to the IOC
-IOC_STATE=/var/lib/asyn-scope-ioc/ioc1
+IOC_APP_DIR=/opt/epics/iocs/asyn-scope-ioc   # where the application lives
+IOC_PATH=iocBoot/ioctestAsynPortDriver       # below IOC_APP_DIR
+IOC_APP_NAME=testAsynPortDriver              # empty: run st.cmd via shebang
+IOC_INSTANCE_INDEX=1                         # console 21010; global across every IOC
+IOC_PREFIX=ioc1:                             # record name prefix
+IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 
-#CA_PORT=21013              # optional: pin the CA server port (else dynamic)
-#PVA_PORT=21014             # optional: pin the PVA server port (else dynamic)
-#PS_PORT=...                # optional: override the console port
-#APP_PORT_1=...             # optional: for IOCs that open their own sockets
+#CA_PORT=21013                              # optional: pin the CA server port (else dynamic)
+#PVA_PORT=21014                             # optional: pin the PVA server port (else dynamic)
+#PS_PORT=...                                # optional: override the console port
+#APP_PORT_1=...                             # optional: for IOCs that open their own sockets
 #APP_PORT_2=...
 ```
 
-`IOC_INSTANCE_INDEX` is the only number that has to be unique, and it is unique
-across every IOC on the target. `ioc-instance-add <name>` creates an env file
-with the smallest free slot, and `ioc-ports.sh --show [instance]` prints the
-ports (and, for a running instance, the actual endpoints):
+Instance names are lowercase `[a-z0-9-]` and unique across the host.
+`IOC_INSTANCE_INDEX` is the only number that has to be unique, and it is
+unique across every IOC on the target. `ioc-instance-add <name>` creates an
+entry with the smallest free slot, and `ioc-ports.sh --show [instance]`
+prints the ports (and, for a running instance, the actual endpoints):
 
 ```sh
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --show ioc1
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --next
-/opt/epics/iocs/asyn-scope-ioc/ioc-ports.sh --audit
+ioc-instance-add myscope
+/usr/libexec/epics-ioc/ioc-ports.sh --show scope01
+/usr/libexec/epics-ioc/ioc-ports.sh --next
+/usr/libexec/epics-ioc/ioc-ports.sh --audit
 ```
 
-## The generated start script
+## The start dispatcher
 
-systemd cannot do the port arithmetic, so `ExecStart` is a generated script,
-not procServ directly. `ioc-start.sh <instance>`:
+systemd cannot do the port arithmetic or the registry lookup, so `ExecStart`
+is a script, not procServ directly. `ioc-start.sh <instance>`:
 
-1. sources `/etc/epics/<PN>/<instance>.env`,
-2. derives the console and application ports (`ioc-ports.sh`),
-3. exports `EPICS_CA_SERVER_PORT` / `EPICS_PVAS_SERVER_PORT` when the env file
+1. sources the site values (`epics-ioc-env`: registry roots, `PORT_BASE`,
+   `RUN_DIR`, `PROCSERV_ARGS`),
+2. loads `/etc/epics/instances/<instance>.env`, then the optional
+   `/boot/iocs/<instance>.env` machine overrides,
+3. checks that `$IOC_APP_DIR/$IOC_PATH` exists,
+4. derives the console and application ports (`ioc-ports.sh`),
+5. exports `EPICS_CA_SERVER_PORT` / `EPICS_PVAS_SERVER_PORT` when the entry
    pinned `CA_PORT` / `PVA_PORT` (the servers read them at startup),
-4. defaults `IOC_PREFIX` and `IOC_STATE` and creates the state directory,
-5. `cd`s into `IOC_PATH` and sources the optional `ioc-start.pre` hook,
-6. runs `EPICS_IOC_START_PRE`, then `exec procServ -f -L - -I <info file>
-   -P "$PS_PORT" ...`.
+6. defaults `IOC_PREFIX` and `IOC_STATE` and creates the state directory,
+7. `cd`s into `$IOC_APP_DIR/$IOC_PATH`, sources the optional `ioc-start.pre`
+   hook and runs `$IOC_START_PRE`,
+8. `exec procServ -f -L - --name=<instance> -I <info file> -P "$PS_PORT" ...`.
 
 `IOC_PREFIX` and `IOC_STATE` are exported, and iocsh reads `.cmd` macros from
 the process environment, so `st.cmd` can use `$(IOC_PREFIX)`, `$(IOC_STATE)` or
 any other instance setting directly. The `-I` info file under
-`/run/epics/<PN>/` records the running server's PID and endpoints;
+`/run/epics/` records the running server's PID and endpoints;
 `ioc-ports.sh --show <instance>` reads it.
 
-The hook file `<iocdir>/<IOC_PATH>/ioc-start.pre` is sourced, so it can define
-the function named by `EPICS_IOC_START_PRE` -- for example starting an external
-device simulator on `$APP_PORT_1`. It runs as a sibling process in the service's
-cgroup, so systemd stops it together with the IOC.
+The hook file `<IOC_APP_DIR>/<IOC_PATH>/ioc-start.pre` is sourced, so it can
+define the function named by `IOC_START_PRE` -- for example starting an
+external device simulator on `$APP_PORT_1`. It runs as a sibling process in
+the service's cgroup, so systemd stops it together with the IOC.
 
 ## Target operations
 
 ```bash
-systemctl is-enabled 'epics-asyn-scope-ioc@ioc0'   # disabled: installed, not enabled
-systemctl enable --now 'epics-asyn-scope-ioc@ioc0'
-systemctl enable --now 'epics-asyn-scope-ioc@ioc1'
-ss -ltnp | grep -E '2100[01]|2101[01]'      # consoles 21000 / 21010
-cat /run/epics/asyn-scope-ioc/ioc1.info     # PID and endpoints of the running IOC
+systemctl is-enabled 'epics-ioc@scope01'      # disabled: installed, not enabled
+systemctl enable --now 'epics-ioc@scope01'
+systemctl enable --now 'epics-ioc@scope02'
+ss -ltnp | grep -E '2100[01]|2101[01]'        # consoles 21000 / 21010
+cat /run/epics/scope02.info                   # PID and endpoints of the running IOC
 
-telnet <board-ip> 21000                     # console of ioc0
-telnet <board-ip> 21010                     # console of ioc1
+telnet <board-ip> 21000                       # console of scope01
+telnet <board-ip> 21010                       # console of scope02
 ```
 
 The console is an iocsh prompt for the running IOC (`help`, `dbpr`, ...).

@@ -98,12 +98,15 @@ and the search path: `RDEPENDS:${PN}` for the modules it links, and
 `readelf -d <ioc> | grep -i path` -- Base, the IOC itself and every linked
 module must be listed.
 
-### The unit is installed but not enabled
+### The instance is installed but not enabled
 
-`SYSTEMD_AUTO_ENABLE:${PN} = "disable"` is deliberate, the same policy as the
-caRepeater unit: installing must not start an IOC. Start it with
-`systemctl enable --now '<PN>@<instance>'`. If the unit is not in the image at
-all, check that `SYSTEMD_SERVICE:${PN}` names the file the recipe installs.
+The preset only enables the instances a recipe lists in `EPICS_IOC_INSTANCES`
+with `EPICS_IOC_AUTO_ENABLE = "enable"`; everything else is installed but
+off -- the same policy as the caRepeater unit: installing must not start an
+IOC. Start it with `systemctl enable --now 'epics-ioc@<instance>'`. If
+systemd cannot find the instance, check that
+`/etc/epics/instances/<instance>.env` is in the image and that
+`IOC_APP_DIR`/`IOC_PATH` inside it point at the installed application.
 
 ### autosave: `write_it: No such file or directory`
 
@@ -142,10 +145,10 @@ selector.
 ## On the target
 
 ```bash
-systemctl status 'epics-asyn-scope-ioc@ioc0' --no-pager
-journalctl -u 'epics-asyn-scope-ioc@ioc0' -n 200
+systemctl status 'epics-ioc@scope01' --no-pager
+journalctl -u 'epics-ioc@scope01' -n 200
 ss -ltnp | grep -E '2100[01]|2101[01]'
-cat /run/epics/epics-asyn-scope-ioc/ioc0.info
+cat /run/epics/scope01.info
 telnet <board-ip> 21000          # procServ console -> iocsh prompt
 ```
 

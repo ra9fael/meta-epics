@@ -44,10 +44,13 @@ ioc-ports.sh --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
 新实例从随包示例复制：
 
 ```sh
-cp /etc/epics/<PN>/example.env /etc/epics/<PN>/<name>.env
-# 修改 IOC_INSTANCE_INDEX / IOC_PREFIX，然后
-systemctl enable --now '<PN>@<name>'
+cp /etc/epics/instances/<example>.env /etc/epics/instances/<name>.env
+# 修改 IOC_APP_DIR / IOC_INSTANCE_INDEX / IOC_PREFIX，然后
+systemctl enable --now 'epics-ioc@<name>'
 ```
+
+某台机器上单个实例的差异化配置放在 BOOT 分区的
+`/boot/iocs/<name>.env`，优先级高于随镜像安装的条目。
 
 ## procServ 控制台（唯一静态分配的口）
 
@@ -57,9 +60,9 @@ systemctl enable --now '<PN>@<name>'
 
 两个配套手段：
 
-* procServ 以 `-I /run/epics/<PN>/<实例>.info` 运行，把运行中服务器的 PID 和实际
+* procServ 以 `-I /run/epics/<实例>.info` 运行，把运行中服务器的 PID 和实际
   endpoint 落盘；`ioc-ports.sh --show <实例名>` 会打印出来。
-* 控制台是明文 telnet，默认 `PROCSERV_ARGS="-A"` 时任何主机都能连。可以按实例
+* 控制台是明文 telnet，默认 `PROCSERV_ARGS="-A --oneshot"` 时任何主机都能连。可以按实例
   收紧（`PROCSERV_ARGS="-r"` 只绑本机）或用防火墙限制 21000 段；procServ 还支持
   用 UNIX domain socket（`unix:/路径` endpoint）提供控制台，完全不占 TCP 端口。
 

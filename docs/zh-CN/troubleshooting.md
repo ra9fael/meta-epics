@@ -86,11 +86,14 @@ asyn 的 `-DHAVE_DEVINT64` 这类特性宏是模块 Makefile 用 `+=` 加的。�
 `readelf -d <ioc> | grep -i path` 确认 —— Base、IOC 自身和每个链接的模块都要
 在列表里。
 
-### 单元装上了但没有启用
+### 实例装上了但没有启用
 
-`SYSTEMD_AUTO_ENABLE:${PN} = "disable"` 是有意的，与 caRepeater 单元同一策略：
-安装不等于启动。用 `systemctl enable --now '<PN>@<实例名>'` 启动。如果镜像里
-根本没有这个单元，检查 `SYSTEMD_SERVICE:${PN}` 是否指向 recipe 安装的文件。
+preset 只启用 recipe 里 `EPICS_IOC_INSTANCES` 与
+`EPICS_IOC_AUTO_ENABLE = "enable"` 列出的实例；其余只安装、不启动——与
+caRepeater 单元同一策略：安装不等于启动。用
+`systemctl enable --now 'epics-ioc@<实例名>'` 启动。如果 systemd 找不到该
+实例，检查 `/etc/epics/instances/<实例名>.env` 是否在镜像里，以及其中的
+`IOC_APP_DIR`/`IOC_PATH` 是否指向已安装的应用。
 
 ### autosave：`write_it: No such file or directory`
 
@@ -124,8 +127,8 @@ asyn 的 `-DHAVE_DEVINT64` 这类特性宏是模块 Makefile 用 `+=` 加的。�
 ## 在 target 上
 
 ```bash
-systemctl status 'epics-asyn-scope-ioc@ioc0' --no-pager
-journalctl -u 'epics-asyn-scope-ioc@ioc0' -n 200
+systemctl status 'epics-ioc@scope01' --no-pager
+journalctl -u 'epics-ioc@scope01' -n 200
 ss -ltnp | grep -E '2100[01]|2101[01]'
 cat /run/epics/epics-asyn-scope-ioc/ioc0.info
 telnet <板卡IP> 21000          # procServ 控制台 -> iocsh 提示符

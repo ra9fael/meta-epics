@@ -46,10 +46,14 @@ ioc-ports.sh --audit            # report slot collisions in /etc/epics/*/*.env
 A new instance is created from the shipped example:
 
 ```sh
-cp /etc/epics/<PN>/example.env /etc/epics/<PN>/<name>.env
-# edit IOC_INSTANCE_INDEX / IOC_PREFIX, then
-systemctl enable --now '<PN>@<name>'
+cp /etc/epics/instances/<example>.env /etc/epics/instances/<name>.env
+# edit IOC_APP_DIR / IOC_INSTANCE_INDEX / IOC_PREFIX, then
+systemctl enable --now 'epics-ioc@<name>'
 ```
+
+A machine-specific override for one instance lives in
+`/boot/iocs/<name>.env` on the BOOT partition and wins over the shipped
+entry.
 
 ## procServ console (the statically managed port)
 
@@ -59,10 +63,10 @@ collision makes the second IOC fail visibly instead of silently.
 
 Two aids come with it:
 
-* procServ runs with `-I /run/epics/<PN>/<instance>.info`, so the running
+* procServ runs with `-I /run/epics/<instance>.info`, so the running
   server's PID and actual endpoints are on disk; `ioc-ports.sh --show <instance>`
   prints them.
-* The console is plain telnet and, with the default `PROCSERV_ARGS="-A"`,
+* The console is plain telnet and, with the default `PROCSERV_ARGS="-A --oneshot"`,
   reachable from any host. Restrict it per instance (`PROCSERV_ARGS="-r"` binds
   localhost only) or with a firewall over the 21000 range; procServ can also
   serve the console on a UNIX domain socket (`unix:/path` endpoint) if no TCP
