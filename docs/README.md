@@ -1,8 +1,8 @@
-# meta-epics documentation
+# meta-impcas-epics documentation
 
 English | [简体中文](zh-CN/README.md)
 
-This index is part of the [meta-epics](../README.md) layer.
+This index is part of the [meta-impcas-epics](../README.md) layer.
 
 ## Documents
 

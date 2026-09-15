@@ -2,7 +2,7 @@
 
 English | [简体中文](zh-CN/port-allocation.md)
 
-Part of the [meta-epics documentation](README.md).
+Part of the [meta-impcas-epics documentation](README.md).
 
 Several IOC instances on one target each need a console port and, depending on
 the application, their own service ports. EPICS itself already manages most of

@@ -2,7 +2,7 @@
 
 English | [简体中文](zh-CN/epics-base.md)
 
-Part of the [meta-epics documentation](README.md).
+Part of the [meta-impcas-epics documentation](README.md).
 
 ## Scope
 

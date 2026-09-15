@@ -1,8 +1,8 @@
-# meta-epics 文档索引
+# meta-impcas-epics 文档索引
 
 [English](../README.md) | 简体中文
 
-本索引属于 [meta-epics](../../README.zh-CN.md) layer。
+本索引属于 [meta-impcas-epics](../../README.zh-CN.md) layer。
 
 ## 文档列表
 
