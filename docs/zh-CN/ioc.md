@@ -18,7 +18,7 @@ IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及�
   （`epics-ioc@.service`）、`ioc-start.sh` 调度器和端口槽位辅助脚本。实例只由
   它的全机唯一名字标识。
 
-`recipes-examples/asyn-scope-ioc/` 里的 `epics-asyn-scope-ioc` 是完整示例：它直接
+`recipes-examples/epics-asyn-scope-ioc/` 里的 `epics-asyn-scope-ioc` 是完整示例：它直接
 从 asyn 源码构建 asyn 自带的模拟示波器测试 IOC（`testAsynPortDriver`）。阅读本文
 时请对照它的 recipe。
 

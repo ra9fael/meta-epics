@@ -19,7 +19,7 @@ Three pieces cooperate:
   template (`epics-ioc@.service`), the `ioc-start.sh` dispatcher and the
   port-slot helpers. An instance is identified by its host-global name only.
 
-`epics-asyn-scope-ioc` in `recipes-examples/asyn-scope-ioc/` is a complete
+`epics-asyn-scope-ioc` in `recipes-examples/epics-asyn-scope-ioc/` is a complete
 example: it builds asyn's own simulated oscilloscope test IOC
 (`testAsynPortDriver`) straight from the asyn sources. Read its recipe alongside
 this document.
