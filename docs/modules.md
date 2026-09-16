@@ -81,6 +81,7 @@ EPICS_INSTALL_SUBDIRS = "lib db dbd include cfg"
 | `epics-xxx` | xxx (master) | asyn, autosave |
 | `epics-mcoreutils` | MCoreUtils (master) | -- |
 | `epics-pcas` | pcas (master) | -- |
+| `epics-pvxs` | pvxs (1.5.2) | -- |
 | `epics-autoparamdriver` | autoparamDriver (v2.1.0) | asyn |
 | `epics-mqtt` | mqtt (1.0.0) | asyn, autoparamDriver, paho |
 | `epics-stream` | stream (2.8.26) | asyn, seq, sscan, calc, pcre |
