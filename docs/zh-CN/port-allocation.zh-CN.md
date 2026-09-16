@@ -37,9 +37,9 @@ IOC_STATE=/var/lib/<PN>/ioc1
 换算由随每个 IOC 安装的 `<iocdir>/ioc-ports.sh` 完成：
 
 ```sh
-ioc-ports.sh --show [实例名]   # 推导出的端口，以及运行中实例的实际 endpoint
-ioc-ports.sh --next            # 全 target 范围内第一个空闲槽位
-ioc-ports.sh --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
+ioc-ports --show [实例名]   # 推导出的端口，以及运行中实例的实际 endpoint
+ioc-ports --next            # 全 target 范围内第一个空闲槽位
+ioc-ports --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
 ```
 
 新实例从随包示例复制：
@@ -62,7 +62,7 @@ systemctl enable --now 'epics-ioc@<name>'
 两个配套手段：
 
 * procServ 以 `-I /run/epics/<实例>.info` 运行，把运行中服务器的 PID 和实际
-  endpoint 落盘；`ioc-ports.sh --show <实例名>` 会打印出来。
+  endpoint 落盘；`ioc-ports --show <实例名>` 会打印出来。
 * 控制台是明文 telnet，默认 `PROCSERV_ARGS="-A --oneshot"` 时任何主机都能连。可以按实例
   收紧（`PROCSERV_ARGS="-r"` 只绑本机）或用防火墙限制 21000 段；procServ 还支持
   用 UNIX domain socket（`unix:/路径` endpoint）提供控制台，完全不占 TCP 端口。

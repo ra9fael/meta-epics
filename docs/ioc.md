@@ -29,7 +29,7 @@ this document.
 ```text
 /usr/lib/systemd/system/epics-ioc@.service     # one generic template for every IOC
 /usr/libexec/epics-ioc/{ioc-start.sh,ioc-ports.sh,epics-ioc-env}
-/usr/sbin/ioc-instance-add
+/usr/bin/{ioc-ports,ioc-manager,ioc-instance-add}
 /etc/epics/instances/{scope01.env,scope02.env} # the instance registry (fleet layer)
 /opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /opt/epics/iocs/asyn-scope-ioc-1.0/
@@ -151,14 +151,14 @@ without a trailing colon.
 Instance names are lowercase `[a-z0-9-]` and unique across the host.
 `IOC_INSTANCE_INDEX` is the only number that has to be unique, and it is
 unique across every IOC on the target. `ioc-instance-add <name>` creates an
-entry with the smallest free slot, and `ioc-ports.sh --show [instance]`
+entry with the smallest free slot, and `ioc-ports --show [instance]`
 prints the ports (and, for a running instance, the actual endpoints):
 
 ```sh
 ioc-instance-add myscope
-/usr/libexec/epics-ioc/ioc-ports.sh --show scope01
-/usr/libexec/epics-ioc/ioc-ports.sh --next
-/usr/libexec/epics-ioc/ioc-ports.sh --audit
+ioc-ports --show scope01
+ioc-ports --next
+ioc-ports --audit
 ```
 
 `ioc-manager` is the day-to-day front end over the registry and systemd:
@@ -193,7 +193,7 @@ is a script, not procServ directly. `ioc-start.sh <instance>`:
 the process environment, so `st.cmd` can use `$(P)`, `$(R)`, `$(IOC_STATE)` or
 any other instance setting directly. The `-I` info file under
 `/run/epics/` records the running server's PID and endpoints;
-`ioc-ports.sh --show <instance>` reads it.
+`ioc-ports --show <instance>` reads it.
 
 The hook file `<IOC_APP_DIR>/<IOC_PATH>/ioc-start.pre` is sourced, so it can
 define the function named by `IOC_START_PRE` -- for example starting an

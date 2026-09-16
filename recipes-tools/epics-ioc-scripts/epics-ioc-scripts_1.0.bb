@@ -31,7 +31,7 @@ SYSTEMD_SERVICE:${PN} = "epics-ioc@.service"
 SYSTEMD_AUTO_ENABLE:${PN} = "disable"
 
 do_install() {
-    install -d ${D}${libexecdir}/epics-ioc ${D}${sbindir} ${D}${systemd_system_unitdir}
+    install -d ${D}${libexecdir}/epics-ioc ${D}${bindir} ${D}${systemd_system_unitdir}
     install -d ${D}${EPICS_IOC_ENV_ROOT}
 
     # Static runtime data. EPICS_TARGET_ARCH is baked in: this package is
@@ -50,14 +50,18 @@ EOF
     install -m 0755 ${WORKDIR}/ioc-start.sh ${WORKDIR}/ioc-ports.sh \
         ${D}${libexecdir}/epics-ioc/
     install -m 0755 ${WORKDIR}/ioc-instance-add ${WORKDIR}/ioc-manager \
-        ${D}${sbindir}/
+        ${D}${bindir}/
+
+    # Thin wrapper so the port-slot helpers are reachable through PATH.
+    printf '#!/bin/sh\nexec %s/epics-ioc/ioc-ports.sh "$@"\n' "${libexecdir}" \
+        > ${D}${bindir}/ioc-ports
+    chmod 0755 ${D}${bindir}/ioc-ports
     install -m 0644 ${WORKDIR}/epics-ioc@.service ${D}${systemd_system_unitdir}/epics-ioc@.service
     sed -i s,@LIBEXECDIR@,${libexecdir},g ${D}${systemd_system_unitdir}/epics-ioc@.service
 }
 
 FILES:${PN} = "${libexecdir}/epics-ioc/ \
-               ${sbindir}/ioc-instance-add \
-               ${sbindir}/ioc-manager \
+               ${bindir}/ioc-ports ${bindir}/ioc-manager ${bindir}/ioc-instance-add \
                ${systemd_system_unitdir}/epics-ioc@.service \
                ${EPICS_IOC_ENV_ROOT} \
 "

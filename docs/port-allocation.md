@@ -39,9 +39,9 @@ IOC_STATE=/var/lib/<PN>/ioc1
 The mapper is `<iocdir>/ioc-ports.sh`, installed with every IOC:
 
 ```sh
-ioc-ports.sh --show [instance]  # derived ports, plus the running endpoints
-ioc-ports.sh --next             # first free slot, across every IOC on the target
-ioc-ports.sh --audit            # report slot collisions in /etc/epics/*/*.env
+ioc-ports --show [instance]  # derived ports, plus the running endpoints
+ioc-ports --next             # first free slot, across every IOC on the target
+ioc-ports --audit            # report slot collisions in /etc/epics/*/*.env
 ```
 
 A new instance is created from the shipped example:
@@ -65,7 +65,7 @@ collision makes the second IOC fail visibly instead of silently.
 Two aids come with it:
 
 * procServ runs with `-I /run/epics/<instance>.info`, so the running
-  server's PID and actual endpoints are on disk; `ioc-ports.sh --show <instance>`
+  server's PID and actual endpoints are on disk; `ioc-ports --show <instance>`
   prints them.
 * The console is plain telnet and, with the default `PROCSERV_ARGS="-A --oneshot"`,
   reachable from any host. Restrict it per instance (`PROCSERV_ARGS="-r"` binds

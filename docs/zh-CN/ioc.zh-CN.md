@@ -27,7 +27,7 @@ IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及�
 ```text
 /usr/lib/systemd/system/epics-ioc@.service     # 全部 IOC 共用一个通用模板
 /usr/libexec/epics-ioc/{ioc-start.sh,ioc-ports.sh,epics-ioc-env}
-/usr/sbin/ioc-instance-add
+/usr/bin/{ioc-ports,ioc-manager,ioc-instance-add}
 /etc/epics/instances/{scope01.env,scope02.env} # 实例注册表（队级层）
 /opt/epics/iocs/asyn-scope-ioc -> asyn-scope-ioc-1.0
 /opt/epics/iocs/asyn-scope-ioc-1.0/
@@ -137,14 +137,14 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01    # 可写的实例状态目录（aut
 
 实例名是小写 `[a-z0-9-]` 且全机唯一。`IOC_INSTANCE_INDEX` 是唯一必须唯一的
 编号，而且是对 target 上所有 IOC 全局唯一。`ioc-instance-add <name>` 用最小
-空闲槽位生成注册表条目，`ioc-ports.sh --show [实例名]` 打印端口（运行中的
+空闲槽位生成注册表条目，`ioc-ports --show [实例名]` 打印端口（运行中的
 实例还会列出实际 endpoint）：
 
 ```sh
 ioc-instance-add myscope
-/usr/libexec/epics-ioc/ioc-ports.sh --show scope01
-/usr/libexec/epics-ioc/ioc-ports.sh --next
-/usr/libexec/epics-ioc/ioc-ports.sh --audit
+ioc-ports --show scope01
+ioc-ports --next
+ioc-ports --audit
 ```
 
 `ioc-manager` 是面向注册表和 systemd 的日常入口：
@@ -177,7 +177,7 @@ procServ 本身。`ioc-start.sh <实例名>` 依次：
 
 `P`、`R` 和 `IOC_STATE` 会被 export，而 iocsh 从进程环境读取 `.cmd` 宏，因此
 `st.cmd` 里可以直接用 `$(P)`、`$(R)`、`$(IOC_STATE)` 或任何实例设置。`/run/epics/`
-下的 `-I` info 文件记录运行中服务器的 PID 和 endpoint；`ioc-ports.sh --show <实例名>`
+下的 `-I` info 文件记录运行中服务器的 PID 和 endpoint；`ioc-ports --show <实例名>`
 会读取它。
 
 钩子文件 `<IOC_APP_DIR>/<IOC_PATH>/ioc-start.pre` 会被 source，所以可以在其中定义
