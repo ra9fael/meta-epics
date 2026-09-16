@@ -1,6 +1,6 @@
 # IOC port management
 
-English | [简体中文](zh-CN/port-allocation.md)
+English | [简体中文](zh-CN/port-allocation.zh-CN.md)
 
 Part of the [meta-impcas-epics documentation](README.md).
 

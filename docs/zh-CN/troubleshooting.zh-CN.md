@@ -2,7 +2,7 @@
 
 [English](../troubleshooting.md) | 简体中文
 
-本文属于[文档索引](README.md)。
+本文属于[文档索引](README.zh-CN.md)。
 
 按症状组织，每条给出原因和修法。构建侧的条目会注明行为出处（上游源码的文件
 和位置）。
@@ -50,7 +50,7 @@ EPICS 让交叉目标依赖 host 目标（`configure/RULES_ARCHS` 生成
 `install.<cross> : install.<host>`），构建因此会尝试链一个 host 版本，而它
 依赖的 host 模块库是故意不打包的。IOC 应用通过 `EPICS_MAKE_EXTRA` 清掉
 `CROSS_ARCHS`；会链接其他模块的支持模块需要同样处理（见
-[modules.md](modules.md)）。
+[modules.md](modules.zh-CN.md)）。
 
 ### `Can't open perl script .../base/bin/<host-arch>/<工具>.pl`
 

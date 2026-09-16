@@ -1,6 +1,6 @@
 # IOC applications
 
-English | [简体中文](zh-CN/ioc.md)
+English | [简体中文](zh-CN/ioc.zh-CN.md)
 
 Part of the [meta-impcas-epics documentation](README.md).
 
@@ -242,6 +242,70 @@ The simulated oscilloscope does not open sockets of its own, so its instances
 use no application ports. An IOC that does -- one that acts as a Modbus or
 stream-device server, say -- pins them in its env file and documents them in
 the port table of [port-allocation.md](port-allocation.md).
+
+## Testing the startup chain on the target
+
+The whole chain -- bootmount, bootcfg, fpgacfg, the instance registry, the
+dispatcher -- is only exercised together on the target. After rebuilding the
+image and redeploying (`petalinux-build`, `inflate-sd.sh`), put this
+machine's site files on the BOOT partition before the first boot:
+
+```text
+net.cfg                    # HOSTNAME / IP / mask / gateway / DNS / NTP
+iocs/iocblm/envPaths       # epicsEnvSet("P","XRAY:BLM:BD40")  <- this machine's prefix
+iocs/iocblm/calibrations/  # optional: ADC calibration files
+fpga/<name>.bit.bin        # optional bitstream pool
+fpga/active.conf           # optional: BITSTREAM=<pool file name>
+```
+
+Then boot and walk the chain:
+
+```bash
+# 1. the four services, in order
+systemctl status bootmount bootcfg fpgacfg epics-ioc@blm --no-pager
+findmnt /boot                              # mounted by label, not device
+hostname; ip -4 addr show eth0             # net.cfg applied
+
+# 2. registry and state
+ioc-manager list                           # blm enabled/active; scope01/02 installed
+ioc-manager report                         # slot / port / prefix / application
+
+# 3. data plane: console banner carries the instance name, records carry P
+telnet 127.0.0.1 21000                     # iocsh; dbl shows XRAY:BLM:BD40:CH0:...
+caget XRAY:BLM:BD40:CH0:ADC_WARN_TH        # from the board or any client
+```
+
+Failure semantics (deliberate, see above): kill the IOC with `^X` in the
+console and the unit stays **failed** -- `ioc-manager status` shows it, the
+journal holds the crash scene, nothing restarts behind your back. Bring it
+back with `systemctl start epics-ioc@blm` after investigating.
+
+Two negative tests are worth running once per image:
+
+* **Machine overrides and the host guard.** Put `IOC_HOST=other-machine` in
+  `/boot/iocs/blm.env` and restart the unit: it must refuse to start with
+  the pinned-host message. Fix the name, restart, done.
+* **A failed bitstream load must stop the IOC.** Put two `.bit.bin` files in
+  `/boot/fpga` without `active.conf` and reboot: `fpgacfg` fails listing the
+  candidates, and `epics-ioc@blm` stays down because it *requires* fpgacfg
+  -- publishing interlock data from an unconfigured PL would be worse. An
+  empty or missing `/boot/fpga` is the opposite case: fpgacfg succeeds as a
+  no-op and the IOC starts.
+
+An instance that should self-heal opts in explicitly:
+
+```bash
+mkdir -p /etc/systemd/system/epics-ioc@blm.service.d
+printf '[Service]\nRestart=always\nRestartSec=5s\n' \
+    > /etc/systemd/system/epics-ioc@blm.service.d/restart.conf
+systemctl daemon-reload && systemctl restart epics-ioc@blm
+```
+
+Two pitfalls: `scope01` and `blm` both ship with slot 0, so starting both on
+one board collides on console port 21000 -- edit
+`/etc/epics/instances/scope01.env` first (which tests a manual registry edit
+as a bonus); and `petalinux-build` needs the network for AUTOREV, so on a
+flaky proxy switch the BLM recipe to its local `file://` SRC_URI block.
 
 ## Why the classes do what they do
 

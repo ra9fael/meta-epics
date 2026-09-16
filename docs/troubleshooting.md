@@ -1,6 +1,6 @@
 # Troubleshooting
 
-English | [简体中文](zh-CN/troubleshooting.md)
+English | [简体中文](zh-CN/troubleshooting.zh-CN.md)
 
 Part of the [documentation index](README.md).
 

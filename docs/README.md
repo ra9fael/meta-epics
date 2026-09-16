@@ -1,6 +1,6 @@
 # meta-impcas-epics documentation
 
-English | [简体中文](zh-CN/README.md)
+English | [简体中文](zh-CN/README.zh-CN.md)
 
 This index is part of the [meta-impcas-epics](../README.md) layer.
 
@@ -30,7 +30,7 @@ recipe, [troubleshooting](troubleshooting.md) when something breaks.
 ## Conventions
 
 * Every document exists in English (in `docs/`) and in Chinese (in
-  `docs/zh-CN/`) under the same base name. The first line under the title
+  `docs/zh-CN/` as `<name>.zh-CN.md`). The first line under the title
   links to the other language.
 * Cross references stay in the reader's language: an English document links to
   English documents, a Chinese document to Chinese ones.

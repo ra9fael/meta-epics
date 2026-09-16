@@ -2,7 +2,7 @@
 
 [English](../port-allocation.md) | 简体中文
 
-本文属于[文档索引](README.md)。
+本文属于[文档索引](README.zh-CN.md)。
 
 同一块 target 上的多个 IOC 实例各自需要一个控制台端口，视应用而定还需要自己的
 服务端口。这部分 EPICS 本身已经管了大半：主机上的第一个 IOC 拿到默认的 CA/PVA
@@ -17,7 +17,7 @@ procServ 控制台，所以本 layer 唯一静态分配的就是它。
 | PVA 服务口 | 不分配：动态（第一个 IOC 得 5075） | EPICS 原生；可选固定 |
 | CA beacon/repeater、PVA 广播 | 5065 / 5076 | 主机上所有 IOC 共享 |
 
-recipe 与实例如何配置见 [ioc.md](ioc.md)。
+recipe 与实例如何配置见 [ioc.md](ioc.zh-CN.md)。
 
 ## 槽位编号
 

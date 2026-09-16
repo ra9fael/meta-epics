@@ -2,7 +2,7 @@
 
 [English](../ioc.md) | 简体中文
 
-本文属于[文档索引](README.md)。
+本文属于[文档索引](README.zh-CN.md)。
 
 IOC 应用是一棵 `makeBaseApp` 风格的目录树：一个应用目录，含 `configure/`、生成
 IOC 可执行文件和 `.dbd` 的 `*App/src`、放记录的 `*App/Db`，以及带 `st.cmd` 的
@@ -221,7 +221,7 @@ Phoebus 打开即可。文件里的默认宏是 `P=ioc0:`、`R=scope1:`，开箱
 
 模拟示波器不自己开 socket，所以它的实例不占用应用口。需要应用口的 IOC——比如
 做 Modbus 或 stream-device 服务端的——在 env 文件里固定，并写入
-[port-allocation.md](port-allocation.md) 的端口表。
+[port-allocation.md](port-allocation.zh-CN.md) 的端口表。
 
 ## 为什么 class 要这么做
 
