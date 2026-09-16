@@ -19,8 +19,11 @@
 
 inherit epics-ioc
 
-# The runtime package owns the unit file and the scripts.
+# The runtime package owns the unit file and the scripts. DEPENDS only
+# sequences the build -- the runtime has to be RDEPENDS'd or it never
+# reaches the rootfs and every instance fails with a missing ExecStart.
 DEPENDS += "epics-ioc-scripts"
+RDEPENDS:${PN} += "epics-ioc-scripts procserv"
 
 # Registry root. Must match epics-ioc-scripts' EPICS_IOC_ENV_ROOT; redefined
 # here because recipe variables do not cross package boundaries.
