@@ -31,7 +31,8 @@ The instance env file sets it:
 
 ```sh
 IOC_INSTANCE_INDEX=1        # console 21010, app ports 21011/21012
-IOC_PREFIX=ioc1:
+P=ioc1:
+R=scope1:
 IOC_STATE=/var/lib/<PN>/ioc1
 ```
 
@@ -47,12 +48,12 @@ A new instance is created from the shipped example:
 
 ```sh
 cp /etc/epics/instances/<example>.env /etc/epics/instances/<name>.env
-# edit IOC_APP_DIR / IOC_INSTANCE_INDEX / IOC_PREFIX, then
+# edit IOC_APP_DIR / IOC_INSTANCE_INDEX / P, then
 systemctl enable --now 'epics-ioc@<name>'
 ```
 
 A machine-specific override for one instance lives in
-`/boot/iocs/<name>.env` on the BOOT partition and wins over the shipped
+`/boot/iocs/<name>/<name>.env` on the BOOT partition and wins over the shipped
 entry.
 
 ## procServ console (the statically managed port)

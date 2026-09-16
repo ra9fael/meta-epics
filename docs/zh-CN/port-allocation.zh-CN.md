@@ -29,7 +29,8 @@ recipe 与实例如何配置见 [ioc.md](ioc.zh-CN.md)。
 
 ```sh
 IOC_INSTANCE_INDEX=1        # 控制台 21010，应用口 21011/21012
-IOC_PREFIX=ioc1:
+P=ioc1:
+R=scope1:
 IOC_STATE=/var/lib/<PN>/ioc1
 ```
 
@@ -45,12 +46,12 @@ ioc-ports.sh --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
 
 ```sh
 cp /etc/epics/instances/<example>.env /etc/epics/instances/<name>.env
-# 修改 IOC_APP_DIR / IOC_INSTANCE_INDEX / IOC_PREFIX，然后
+# 修改 IOC_APP_DIR / IOC_INSTANCE_INDEX / P，然后
 systemctl enable --now 'epics-ioc@<name>'
 ```
 
 某台机器上单个实例的差异化配置放在 BOOT 分区的
-`/boot/iocs/<name>.env`，优先级高于随镜像安装的条目。
+`/boot/iocs/<name>/<name>.env` 在 BOOT 分区，优先级高于随镜像安装的条目。
 
 ## procServ 控制台（唯一静态分配的口）
 

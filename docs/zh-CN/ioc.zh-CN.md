@@ -97,8 +97,9 @@ IOC_APP_DIR=/opt/epics/iocs/asyn-scope-ioc   # 应用所在目录
 IOC_PATH=iocBoot/ioctestAsynPortDriver       # 相对 IOC_APP_DIR
 IOC_APP_NAME=testAsynPortDriver              # 留空：通过 shebang 运行 st.cmd
 IOC_INSTANCE_INDEX=1                         # 控制台 21010；对 target 上所有 IOC 全局唯一
-IOC_PREFIX=ioc1:                             # 记录名前缀
-IOC_STATE=/var/lib/asyn-scope-ioc/scope01
+P=ioc1:                                      # 记录前缀（分隔符包含在值里）
+R=scope1:                                    # 可选设备根：记录名形如 $(P)$(R)...
+IOC_STATE=/var/lib/asyn-scope-ioc/scope01    # 可写的实例状态目录（autosave save 文件）
 
 #CA_PORT=21013                              # 可选：固定 CA 服务端口（否则动态）
 #PVA_PORT=21014                             # 可选：固定 PVA 服务端口（否则动态）
@@ -127,8 +128,9 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 
 * 像 BLM 这种 `st.cmd` source `/boot` envPaths 的 IOC，`P` 来自
   `/boot/iocs/iocblm/envPaths` 里的 `epicsEnvSet("P","XRAY:BLM:BD40")`；
-* 一般 IOC 取注册表键 `IOC_PREFIX`——可选的 `/boot/iocs/<name>.env` 机器层
-  可以覆盖它。
+* 一般 IOC 从注册表键 `P`（和 `R`）取值——可选的
+  `/boot/iocs/<name>/<name>.env` 机器层可以覆盖。IOC 内部的 envPaths
+  `epicsEnvSet` 优先级更高：它在 st.cmd 里更晚执行。
 
 冒号风格跟随数据库：`.db` 模板里的记录名自带分隔符（`$(P):CH0:...`），所以
 `P` 的值不带尾冒号。
@@ -168,13 +170,13 @@ procServ 本身。`ioc-start.sh <实例名>` 依次：
 4. 推导控制口和应用口（`ioc-ports.sh`）；
 5. env 固定了 `CA_PORT`/`PVA_PORT` 时，导出
    `EPICS_CA_SERVER_PORT`/`EPICS_PVAS_SERVER_PORT`（服务端启动时读取）；
-6. 为 `IOC_PREFIX`、`IOC_STATE` 取默认值并创建状态目录；
+6. 注册表设置了 `P` / `R` 时将其 export，为 `IOC_STATE` 取默认值并创建状态目录；
 7. `cd` 进 `$IOC_APP_DIR/$IOC_PATH`，source 可选的 `ioc-start.pre` 钩子并
    执行 `$IOC_START_PRE`；
 8. `exec procServ -f -L - --name=<实例名> -I <info文件> -P "$PS_PORT" ...`。
 
-`IOC_PREFIX` 和 `IOC_STATE` 会被 export，而 iocsh 从进程环境读取 `.cmd` 宏，因此
-`st.cmd` 里可以直接用 `$(IOC_PREFIX)`、`$(IOC_STATE)` 或任何实例设置。`/run/epics/`
+`P`、`R` 和 `IOC_STATE` 会被 export，而 iocsh 从进程环境读取 `.cmd` 宏，因此
+`st.cmd` 里可以直接用 `$(P)`、`$(R)`、`$(IOC_STATE)` 或任何实例设置。`/run/epics/`
 下的 `-I` info 文件记录运行中服务器的 PID 和 endpoint；`ioc-ports.sh --show <实例名>`
 会读取它。
 

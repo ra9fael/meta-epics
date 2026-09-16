@@ -95,7 +95,7 @@ entry -- a plain `KEY=value` env file. Two layers exist, later wins:
 
 * `/etc/epics/instances/<name>.env` -- the fleet layer, shipped in the image
   by the IOC package;
-* `/boot/iocs/<name>.env` -- the machine layer on the writable BOOT
+* `/boot/iocs/<name>/<name>.env` -- the machine layer on the writable BOOT
   partition, for per-machine overrides; absent on most machines.
 
 The registry entry points at the application and carries the identity:
@@ -105,8 +105,9 @@ IOC_APP_DIR=/opt/epics/iocs/asyn-scope-ioc   # where the application lives
 IOC_PATH=iocBoot/ioctestAsynPortDriver       # below IOC_APP_DIR
 IOC_APP_NAME=testAsynPortDriver              # empty: run st.cmd via shebang
 IOC_INSTANCE_INDEX=1                         # console 21010; global across every IOC
-IOC_PREFIX=ioc1:                             # record name prefix
-IOC_STATE=/var/lib/asyn-scope-ioc/scope01
+P=ioc1:                                      # record prefix (separators included)
+R=scope1:                                    # optional device root: records are $(P)$(R)...
+IOC_STATE=/var/lib/asyn-scope-ioc/scope01    # writable per-instance state dir (autosave save files)
 
 #CA_PORT=21013                              # optional: pin the CA server port (else dynamic)
 #PVA_PORT=21014                             # optional: pin the PVA server port (else dynamic)
@@ -138,8 +139,10 @@ never enters the image:
 * an IOC like the BLM one, whose `st.cmd` sources a `/boot` envPaths, takes
   `P` from `epicsEnvSet("P","XRAY:BLM:BD40")` in
   `/boot/iocs/iocblm/envPaths`;
-* a generic IOC takes it from the registry key `IOC_PREFIX` -- which the
-  optional `/boot/iocs/<name>.env` machine layer overrides.
+* a generic IOC takes `P` (and `R`) from the registry keys -- which the
+  optional `/boot/iocs/<name>/<name>.env` machine layer overrides. Inside the
+  IOC an envPaths `epicsEnvSet` outranks the environment: it runs later, from
+  st.cmd.
 
 Colon style follows the database: the record names in the `.db` templates
 already carry the separator (`$(P):CH0:...`), so `P` values are written
@@ -181,13 +184,13 @@ is a script, not procServ directly. `ioc-start.sh <instance>`:
 4. derives the console and application ports (`ioc-ports.sh`),
 5. exports `EPICS_CA_SERVER_PORT` / `EPICS_PVAS_SERVER_PORT` when the entry
    pinned `CA_PORT` / `PVA_PORT` (the servers read them at startup),
-6. defaults `IOC_PREFIX` and `IOC_STATE` and creates the state directory,
+6. exports the conventional `P` / `R` macros when the entry sets them, defaults `IOC_STATE` and creates the state directory,
 7. `cd`s into `$IOC_APP_DIR/$IOC_PATH`, sources the optional `ioc-start.pre`
    hook and runs `$IOC_START_PRE`,
 8. `exec procServ -f -L - --name=<instance> -I <info file> -P "$PS_PORT" ...`.
 
-`IOC_PREFIX` and `IOC_STATE` are exported, and iocsh reads `.cmd` macros from
-the process environment, so `st.cmd` can use `$(IOC_PREFIX)`, `$(IOC_STATE)` or
+`P`, `R` and `IOC_STATE` are exported, and iocsh reads `.cmd` macros from
+the process environment, so `st.cmd` can use `$(P)`, `$(R)`, `$(IOC_STATE)` or
 any other instance setting directly. The `-I` info file under
 `/run/epics/` records the running server's PID and endpoints;
 `ioc-ports.sh --show <instance>` reads it.
@@ -283,7 +286,7 @@ back with `systemctl start epics-ioc@blm` after investigating.
 Two negative tests are worth running once per image:
 
 * **Machine overrides and the host guard.** Put `IOC_HOST=other-machine` in
-  `/boot/iocs/blm.env` and restart the unit: it must refuse to start with
+  `/boot/iocs/blm/blm.env` and restart the unit: it must refuse to start with
   the pinned-host message. Fix the name, restart, done.
 * **A failed bitstream load must stop the IOC.** Put two `.bit.bin` files in
   `/boot/fpga` without `active.conf` and reboot: `fpgacfg` fails listing the

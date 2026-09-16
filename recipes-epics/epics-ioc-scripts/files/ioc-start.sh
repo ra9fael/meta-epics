@@ -35,9 +35,11 @@ fi
 . "$ENV_ROOT/$INSTANCE.env"
 
 # Machine-level overrides (site config on the writable BOOT partition), last
-# one wins: IOC_PREFIX, IOC_STATE, CA_PORT/PVA_PORT, PS_PORT, APP_PORT_1/2.
-if [ -r "$MACHINE_ENV_ROOT/$INSTANCE.env" ]; then
-    . "$MACHINE_ENV_ROOT/$INSTANCE.env"
+# one wins: P, R, IOC_STATE, CA_PORT/PVA_PORT, PS_PORT, APP_PORT_1/2. Note
+# that inside the IOC an envPaths epicsEnvSet outranks these environment
+# values (it runs later, from st.cmd).
+if [ -r "$MACHINE_ENV_ROOT/$INSTANCE/$INSTANCE.env" ]; then
+    . "$MACHINE_ENV_ROOT/$INSTANCE/$INSTANCE.env"
 fi
 
 for key in IOC_APP_DIR IOC_PATH; do
@@ -66,9 +68,13 @@ app_dir="$IOC_APP_DIR/$IOC_PATH"
 . "$HERE/ioc-ports.sh"
 ioc_ports_resolve
 
-[ -n "$IOC_PREFIX" ] || IOC_PREFIX="$INSTANCE:"
+# The conventional EPICS macros: registry entries set P (and optionally R)
+# with their separators included, so st.cmd and dbLoadRecords use $(P)$(R)
+# directly. An envPaths epicsEnvSet sourced by st.cmd outranks them.
+[ -n "$P" ] && export P
+[ -n "$R" ] && export R
 [ -n "$IOC_STATE" ] || IOC_STATE="/var/lib/epics-ioc/$INSTANCE"
-export INSTANCE IOC_PREFIX IOC_STATE EPICS_TARGET_ARCH
+export INSTANCE IOC_STATE EPICS_TARGET_ARCH
 
 # The EPICS service ports stay dynamic unless the instance pins them. rsrv
 # reads EPICS_CA_SERVER_PORT when its server starts, pvAccess reads

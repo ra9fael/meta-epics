@@ -26,7 +26,8 @@ _target="$ENV_ROOT/$_name.env"
 _index="$(ioc_ports_next)"
 cat > "$_target" <<EOF
 # Registry entry for IOC instance $_name (console port $(( PORT_BASE + _index * 10 ))).
-# Machine-specific overrides go to $MACHINE_ENV_ROOT/$_name.env (optional).
+# Machine-specific overrides go to
+# $MACHINE_ENV_ROOT/$_name/$_name.env (optional).
 
 IOC_INSTANCE_INDEX=$_index
 IOC_STATE=/var/lib/epics-ioc/$_name
@@ -34,7 +35,7 @@ IOC_STATE=/var/lib/epics-ioc/$_name
 # IOC_APP_DIR=/opt/epics/iocs/<application>   version-independent app dir
 # IOC_PATH=iocBoot/<ioc>                      below IOC_APP_DIR
 # IOC_APP_NAME=<binary>                       empty: run IOC_ST_CMD via shebang
-# IOC_PREFIX=<PV prefix>
+# P=<record prefix>          # R=<device root> (optional)
 EOF
 echo "created $_target (IOC_INSTANCE_INDEX=$_index)"
 echo "next: fill in IOC_APP_DIR/IOC_PATH/IOC_APP_NAME, then

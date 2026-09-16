@@ -71,7 +71,7 @@ do_install:append() {
 
     # The instance env supplies the PV prefix; the asyn port name is internal to
     # the IOC process, so it stays as upstream wrote it.
-    sed -i 's/P=testAPD:/P=$(IOC_PREFIX)/g' \
+    sed -i -e 's/P=testAPD:/P=$(P)/g' -e 's/R=scope1:/R=$(R)/g' \
         ${install_dir}/${IOC_PATH}/${IOC_ST_CMD}
 
     # asynRecord.db belongs to the installed asyn module; load it from there
