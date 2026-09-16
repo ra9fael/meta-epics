@@ -111,6 +111,28 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 用 `IOC_HOST` 固定的实例在其他机器上会拒绝启动——防止把某台机器的注册表条目
 拷到错误的 SD 卡上。
 
+### 实例名与 PV 宏名是两回事
+
+实例名和 PV 前缀是两个互不相干的身份：
+
+| 身份 | 示例 | 由谁定义 | 作用范围 |
+|---|---|---|---|
+| 实例名 | `blm` | 注册表文件名 | 仅运维标识；全队统一 |
+| `IOC_HOST` | `blm01` | 注册表条目的可选键 | 防拷贝错误的守卫 |
+| `P`（PV 前缀） | `XRAY:BLM:BD40` | 每台机器，位于 BOOT 分区 | 客户端看到的名字 |
+
+实例名被限定为小写 `[a-z0-9-]`（systemd 的 `%i` 和调度器校验都拒绝冒号和
+大写），而且每台机器跑的是同一个镜像，所以它必须处处相同：二十台机器上都是
+`blm`。每台机器唯一不同的恰恰是 PV 前缀，而它完全不进镜像：
+
+* 像 BLM 这种 `st.cmd` source `/boot` envPaths 的 IOC，`P` 来自
+  `/boot/iocs/iocblm/envPaths` 里的 `epicsEnvSet("P","XRAY:BLM:BD40")`；
+* 一般 IOC 取注册表键 `IOC_PREFIX`——可选的 `/boot/iocs/<name>.env` 机器层
+  可以覆盖它。
+
+冒号风格跟随数据库：`.db` 模板里的记录名自带分隔符（`$(P):CH0:...`），所以
+`P` 的值不带尾冒号。
+
 实例名是小写 `[a-z0-9-]` 且全机唯一。`IOC_INSTANCE_INDEX` 是唯一必须唯一的
 编号，而且是对 target 上所有 IOC 全局唯一。`ioc-instance-add <name>` 用最小
 空闲槽位生成注册表条目，`ioc-ports.sh --show [实例名]` 打印端口（运行中的

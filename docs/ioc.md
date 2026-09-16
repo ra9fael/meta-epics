@@ -119,6 +119,32 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 An instance pinned with `IOC_HOST` refuses to start anywhere else -- the
 guard against copying a fleet machine's registry entry to the wrong SD card.
 
+### Instance name vs PV prefix
+
+The instance name and the PV prefix are two unrelated identities:
+
+| Identity | Example | Defined by | Scope |
+|---|---|---|---|
+| Instance name | `blm` | the registry file name | ops only; uniform across the fleet |
+| `IOC_HOST` | `blm01` | optional key in the registry entry | anti-copy-paste guard |
+| `P` (PV prefix) | `XRAY:BLM:BD40` | per machine, on the BOOT partition | what clients see |
+
+The instance name is constrained to lowercase `[a-z0-9-]` (systemd's `%i` and
+the dispatcher's validation reject colons and upper case), and since every
+machine runs the same image it must be the same everywhere: `blm` on all
+twenty machines. What differs per machine is exactly the PV prefix, and it
+never enters the image:
+
+* an IOC like the BLM one, whose `st.cmd` sources a `/boot` envPaths, takes
+  `P` from `epicsEnvSet("P","XRAY:BLM:BD40")` in
+  `/boot/iocs/iocblm/envPaths`;
+* a generic IOC takes it from the registry key `IOC_PREFIX` -- which the
+  optional `/boot/iocs/<name>.env` machine layer overrides.
+
+Colon style follows the database: the record names in the `.db` templates
+already carry the separator (`$(P):CH0:...`), so `P` values are written
+without a trailing colon.
+
 Instance names are lowercase `[a-z0-9-]` and unique across the host.
 `IOC_INSTANCE_INDEX` is the only number that has to be unique, and it is
 unique across every IOC on the target. `ioc-instance-add <name>` creates an
