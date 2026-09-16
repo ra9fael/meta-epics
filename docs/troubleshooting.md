@@ -127,7 +127,7 @@ configured with `drvAsynIPServerPortConfigure`, whose argument must be
 
 The slot index is global to the target, so a duplicate `IOC_INSTANCE_INDEX`
 between two *different* IOCs collides just like one within a single IOC.
-`ioc-ports.sh --audit` scans `/etc/epics/*/*.env` and reports the offending
+`ioc-ports --audit` scans the registry layers and reports the offending
 files; `--next` picks the first free slot. An explicit `PS_PORT` in an instance
 env file overrides the derived one, which is the usual source of an accidental
 collision.

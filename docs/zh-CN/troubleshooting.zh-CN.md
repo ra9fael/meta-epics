@@ -112,8 +112,8 @@ caRepeater 单元同一策略：安装不等于启动。用
 ### 两个实例抢控制台端口
 
 槽位编号对整个 target 全局生效，所以两个**不同** IOC 之间重复的
-`IOC_INSTANCE_INDEX` 与同一 IOC 内部的重复一样会撞号。`ioc-ports.sh --audit`
-扫描 `/etc/epics/*/*.env` 并报告冲突文件；`--next` 取第一个空闲槽位。实例 env
+`IOC_INSTANCE_INDEX` 与同一 IOC 内部的重复一样会撞号。`ioc-ports --audit`
+扫描注册表两层并报告冲突文件；`--next` 取第一个空闲槽位。实例 env
 文件里显式写的 `PS_PORT` 会覆盖推导值，这是意外冲突最常见的来源。
 
 ### 客户端连不上某一个特定的 IOC

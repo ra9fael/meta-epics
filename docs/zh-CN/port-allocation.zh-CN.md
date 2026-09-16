@@ -34,12 +34,12 @@ R=scope1:
 IOC_STATE=/var/lib/<PN>/ioc1
 ```
 
-换算由随每个 IOC 安装的 `<iocdir>/ioc-ports.sh` 完成：
+换算由 `ioc-ports` 命令（`/usr/libexec/epics-ioc/ioc-ports.sh` 的薄包装）完成：
 
 ```sh
 ioc-ports --show [实例名]   # 推导出的端口，以及运行中实例的实际 endpoint
 ioc-ports --next            # 全 target 范围内第一个空闲槽位
-ioc-ports --audit           # 扫描 /etc/epics/*/*.env，报告槽位冲突
+ioc-ports --audit           # 扫描注册表两层，报告槽位冲突
 ```
 
 新实例从随包示例复制：

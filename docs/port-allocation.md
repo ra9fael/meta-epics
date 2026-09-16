@@ -36,12 +36,13 @@ R=scope1:
 IOC_STATE=/var/lib/<PN>/ioc1
 ```
 
-The mapper is `<iocdir>/ioc-ports.sh`, installed with every IOC:
+The mapper is the `ioc-ports` command (a thin wrapper over
+`/usr/libexec/epics-ioc/ioc-ports.sh`):
 
 ```sh
 ioc-ports --show [instance]  # derived ports, plus the running endpoints
 ioc-ports --next             # first free slot, across every IOC on the target
-ioc-ports --audit            # report slot collisions in /etc/epics/*/*.env
+ioc-ports --audit            # report slot collisions across the registry layers
 ```
 
 A new instance is created from the shipped example:
