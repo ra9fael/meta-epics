@@ -48,6 +48,15 @@ for key in IOC_APP_DIR IOC_PATH; do
     }
 done
 
+# Optional anti-copy-paste guard, borrowed from NSLS2's systemd-softioc: an
+# instance pinned to one machine refuses to start on another.
+if [ -n "$IOC_HOST" ]; then
+    if [ "$IOC_HOST" != "$(hostname -s)" ] && [ "$IOC_HOST" != "$(hostname -f)" ]; then
+        echo "$0: instance $INSTANCE is pinned to host '$IOC_HOST', this is '$(hostname -s)'" >&2
+        exit 1
+    fi
+fi
+
 app_dir="$IOC_APP_DIR/$IOC_PATH"
 [ -d "$app_dir" ] || {
     echo "$0: application directory $app_dir does not exist" >&2

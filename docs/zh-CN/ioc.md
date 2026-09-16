@@ -105,7 +105,11 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 #PS_PORT=...                                # 可选：覆盖控制台端口
 #APP_PORT_1=...                             # 可选：IOC 自己开 socket 时使用
 #APP_PORT_2=...
+#IOC_HOST=blm01                             # 可选：拒绝在其他机器上启动
 ```
+
+用 `IOC_HOST` 固定的实例在其他机器上会拒绝启动——防止把某台机器的注册表条目
+拷到错误的 SD 卡上。
 
 实例名是小写 `[a-z0-9-]` 且全机唯一。`IOC_INSTANCE_INDEX` 是唯一必须唯一的
 编号，而且是对 target 上所有 IOC 全局唯一。`ioc-instance-add <name>` 用最小
@@ -117,6 +121,16 @@ ioc-instance-add myscope
 /usr/libexec/epics-ioc/ioc-ports.sh --show scope01
 /usr/libexec/epics-ioc/ioc-ports.sh --next
 /usr/libexec/epics-ioc/ioc-ports.sh --audit
+```
+
+`ioc-manager` 是面向注册表和 systemd 的日常入口：
+
+```sh
+ioc-manager list                  # 两层注册表里的实例 + 状态
+ioc-manager report                # 名字 / 槽位 / 端口 / 前缀 / 应用
+ioc-manager status                # 每个实例一行
+ioc-manager startall | stopall
+ioc-manager status scope01        # 单个实例的完整 systemctl status
 ```
 
 ## 启动调度器
@@ -161,8 +175,11 @@ telnet <板卡IP> 21010                         # scope02 的控制台
 
 控制台就是运行中 IOC 的 iocsh 提示符（`help`、`dbpr`……）。procServ 以
 one-shot 方式运行：IOC 退出——无论崩溃还是控制台里 `^X`——procServ 都会带着
-子进程的退出码退出，systemd 在 5 秒后重启服务；五分钟内失败五次触发单元的
-start limit，熔断停止重启循环（`systemctl reset-failed` 清除）。
+子进程的退出码退出，单元保持 **failed** 状态，journal 里就是完整的故障现场。
+这里**有意不做自动重启**：IOC 挂了是要排查的故障，不是重启能掩盖的。确实需要
+自动拉起的实例用实例级 drop-in 自行开启
+（`/etc/systemd/system/epics-ioc@<name>.service.d/restart.conf`，
+`[Service]` + `Restart=always` + `RestartSec=5s`）。
 
 记录通过 CA 访问，客户端无需任何配置，因为主机上每个实例都会收到广播搜索并以
 自己的端口应答：

@@ -5,16 +5,19 @@ Description=EPICS IOC instance %i
 # directory and carries the instance identity (slot, PV prefix, state dir).
 # See the epics-ioc-scripts documentation.
 After=network.target
-# The one-shot procServ exits with the child's status, so this counter
-# circuit-breaks an IOC that keeps crashing.
-StartLimitIntervalSec=300
-StartLimitBurst=5
 
 [Service]
 Type=simple
+# procServ runs one-shot and exits with the child's status, so a crashed IOC
+# leaves the unit in the failed state with the full journal for debugging.
+# There is deliberately no Restart= here: a dead IOC is a fault to
+# investigate, not one to paper over with restarts. An instance that should
+# come back on its own opts in with an instance-scoped drop-in
+# (/etc/systemd/system/epics-ioc@<name>.service.d/restart.conf):
+#   [Service]
+#   Restart=always
+#   RestartSec=5s
 ExecStart=@LIBEXECDIR@/epics-ioc/ioc-start.sh %i
-Restart=always
-RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

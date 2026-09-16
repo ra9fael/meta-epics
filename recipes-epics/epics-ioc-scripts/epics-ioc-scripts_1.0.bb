@@ -12,6 +12,7 @@ LIC_FILES_CHKSUM = "file://${COMMON_LICENSE_DIR}/MIT;md5=0835ade698e0bcf8506ecda
 SRC_URI = "file://ioc-start.sh \
            file://ioc-ports.sh \
            file://ioc-instance-add \
+           file://ioc-manager \
            file://epics-ioc@.service \
 "
 S = "${WORKDIR}"
@@ -48,13 +49,15 @@ EOF
 
     install -m 0755 ${WORKDIR}/ioc-start.sh ${WORKDIR}/ioc-ports.sh \
         ${D}${libexecdir}/epics-ioc/
-    install -m 0755 ${WORKDIR}/ioc-instance-add ${D}${sbindir}/ioc-instance-add
+    install -m 0755 ${WORKDIR}/ioc-instance-add ${WORKDIR}/ioc-manager \
+        ${D}${sbindir}/
     install -m 0644 ${WORKDIR}/epics-ioc@.service ${D}${systemd_system_unitdir}/epics-ioc@.service
     sed -i s,@LIBEXECDIR@,${libexecdir},g ${D}${systemd_system_unitdir}/epics-ioc@.service
 }
 
 FILES:${PN} = "${libexecdir}/epics-ioc/ \
                ${sbindir}/ioc-instance-add \
+               ${sbindir}/ioc-manager \
                ${systemd_system_unitdir}/epics-ioc@.service \
                ${EPICS_IOC_ENV_ROOT} \
 "

@@ -113,7 +113,11 @@ IOC_STATE=/var/lib/asyn-scope-ioc/scope01
 #PS_PORT=...                                # optional: override the console port
 #APP_PORT_1=...                             # optional: for IOCs that open their own sockets
 #APP_PORT_2=...
+#IOC_HOST=blm01                             # optional: refuse to start on any other machine
 ```
+
+An instance pinned with `IOC_HOST` refuses to start anywhere else -- the
+guard against copying a fleet machine's registry entry to the wrong SD card.
 
 Instance names are lowercase `[a-z0-9-]` and unique across the host.
 `IOC_INSTANCE_INDEX` is the only number that has to be unique, and it is
@@ -126,6 +130,16 @@ ioc-instance-add myscope
 /usr/libexec/epics-ioc/ioc-ports.sh --show scope01
 /usr/libexec/epics-ioc/ioc-ports.sh --next
 /usr/libexec/epics-ioc/ioc-ports.sh --audit
+```
+
+`ioc-manager` is the day-to-day front end over the registry and systemd:
+
+```sh
+ioc-manager list                  # instances from both layers + state
+ioc-manager report                # name / slot / port / prefix / app
+ioc-manager status                # one line per instance
+ioc-manager startall | stopall
+ioc-manager status scope01        # full systemctl status for one instance
 ```
 
 ## The start dispatcher
@@ -172,10 +186,12 @@ telnet <board-ip> 21010                       # console of scope02
 
 The console is an iocsh prompt for the running IOC (`help`, `dbpr`, ...).
 procServ runs one-shot: when the IOC exits -- crash or `^X` from the console
--- procServ exits with the child's status and systemd restarts the service
-after 5 s. Five failures within five minutes trip the unit's start limit and
-the circuit breaker stops the restart loop (`systemctl reset-failed` clears
-it).
+-- procServ exits with the child's status and the unit stays **failed**, with
+the full journal as the crash scene. There is deliberately no automatic
+restart: a dead IOC is a fault to investigate. An instance that should come
+back on its own opts in with an instance drop-in
+(`/etc/systemd/system/epics-ioc@<name>.service.d/restart.conf`,
+`[Service]` + `Restart=always` + `RestartSec=5s`).
 
 Records are reached over CA with no client-side configuration, because every
 instance on the host receives the broadcast search and replies with its own
