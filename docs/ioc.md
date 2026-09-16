@@ -251,7 +251,7 @@ image and redeploying (`petalinux-build`, `inflate-sd.sh`), put this
 machine's site files on the BOOT partition before the first boot:
 
 ```text
-net.cfg                    # HOSTNAME / IP / mask / gateway / DNS / NTP
+machine.cfg                    # HOSTNAME / IP / mask / gateway / DNS / NTP
 iocs/iocblm/envPaths       # epicsEnvSet("P","XRAY:BLM:BD40")  <- this machine's prefix
 iocs/iocblm/calibrations/  # optional: ADC calibration files
 fpga/<name>.bit.bin        # optional bitstream pool
@@ -264,7 +264,7 @@ Then boot and walk the chain:
 # 1. the four services, in order
 systemctl status bootmount bootcfg fpgacfg epics-ioc@blm --no-pager
 findmnt /boot                              # mounted by label, not device
-hostname; ip -4 addr show eth0             # net.cfg applied
+hostname; ip -4 addr show eth0             # machine.cfg applied
 
 # 2. registry and state
 ioc-manager list                           # blm enabled/active; scope01/02 installed
